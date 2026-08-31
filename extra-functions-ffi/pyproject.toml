@@ -1,0 +1,13 @@
+[build-system]
+requires = ["maturin>=1.5,<2"]
+build-backend = "maturin"
+
+[project]
+name = "datafusion-extra-functions-ffi"
+version = "0.1.0"
+description = "datafusion-extra-functions (mode, skewness, kurtosis, max_by, min_by) for datafusion-python, via the DataFusion FFI PyCapsule protocol"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+
+[tool.maturin]
+module-name = "datafusion_extra_functions_ffi"

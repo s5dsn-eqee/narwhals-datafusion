@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+dist/
+build/
+*.egg-info/
+.ruff_cache/
+.pytest_cache/
+
+# Rust (extra-functions-ffi)
+target/
+
+# IDEs
+.vscode/
+.idea/
+
+# IPython / Jupyter
+.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+*.ipynb
+
+# Claude Code
+.claude/

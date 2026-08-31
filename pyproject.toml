@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "narwhals-datafusion"
+version = "0.1.0"
+description = "Apache DataFusion backend for Narwhals, via the Narwhals plugin system"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+  "narwhals>=2.25,<3",
+  "datafusion>=49.0.0",
+  "pyarrow>=14.0.0",
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.entry-points.'narwhals.plugins']
+narwhals-datafusion = 'narwhals_datafusion'
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/narwhals_datafusion"]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+# Optional Rust FFI shim for `mode`/`skew`/`kurtosis`; needs a Rust toolchain.
+# Install with `uv sync --group ffi` / run tests with `uv run --group ffi pytest`.
+ffi = ["datafusion-extra-functions-ffi"]
+
+[tool.uv.sources]
+datafusion-extra-functions-ffi = { path = "extra-functions-ffi" }
+
+# Standalone lint config (decoupled from the narwhals repo's root settings).
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "SIM", "TC"]
+ignore = ["SIM108"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["narwhals_datafusion"]

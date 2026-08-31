@@ -1,0 +1,24 @@
+[package]
+name = "datafusion-extra-functions-ffi"
+version = "0.1.0"
+edition = "2021"
+description = "PyCapsule FFI bindings exposing datafusion-extra-functions (mode, skewness, kurtosis, ...) to datafusion-python"
+license = "Apache-2.0"
+
+[lib]
+name = "datafusion_extra_functions_ffi"
+crate-type = ["cdylib"]
+
+[dependencies]
+# The FFI struct major version must match the datafusion-python release in use.
+# The crates.io release (0.5.2) pins datafusion 53 and current `main` is on 55;
+# rev 9ba4d80 is the last commit targeting datafusion 54, matching the installed
+# datafusion-python wheel's major version at the FFI boundary.
+datafusion-extra-functions = { git = "https://github.com/datafusion-contrib/datafusion-extra-functions", rev = "9ba4d8024d2a394b80356ece79cefda7c382ef51" }
+# Loose "54" so cargo unifies these with whatever 54.x the crate above resolves.
+datafusion-expr = "54"
+datafusion-ffi = "54"
+pyo3 = { version = "0.25", features = ["extension-module", "abi3", "abi3-py310"] }
+
+[profile.release]
+strip = true
