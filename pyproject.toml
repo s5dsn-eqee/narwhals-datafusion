@@ -13,6 +13,9 @@ dependencies = [
   "narwhals>=2.25,<3",
   "datafusion>=49.0.0",
   "pyarrow>=14.0.0",
+  # Rust FFI shim for `mode`/`skew`/`kurtosis` (built from extra-functions-ffi/,
+  # needs a Rust toolchain); part of the package, not an optional extra.
+  "datafusion-extra-functions-ffi",
 ]
 classifiers = [
   "Programming Language :: Python :: 3",
@@ -33,9 +36,6 @@ exclude = ["docs"]
 
 [dependency-groups]
 dev = ["pytest>=8"]
-# Optional Rust FFI shim for `mode`/`skew`/`kurtosis`; needs a Rust toolchain.
-# Install with `uv sync --group ffi` / run tests with `uv run --group ffi pytest`.
-ffi = ["datafusion-extra-functions-ffi"]
 # Deps for running narwhals' own suite from the `narwhals/` submodule
 # (daft-style): `uv run --group tests python run_tests.py`.
 tests = [

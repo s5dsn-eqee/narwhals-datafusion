@@ -27,8 +27,14 @@ jobs:
           enable-cache: "true"
           cache-suffix: pytest-${{ matrix.python-version }}
           cache-dependency-glob: "pyproject.toml"
+      - name: Cache cargo build
+        # for the Rust FFI shim (extra-functions-ffi), a required dependency
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: extra-functions-ffi
       - name: install-reqs
-        # narwhals comes editable from the pinned submodule via [tool.uv.sources]
+        # narwhals comes editable from the pinned submodule via [tool.uv.sources];
+        # datafusion-extra-functions-ffi is built from extra-functions-ffi/
         run: |
           git submodule update --init --recursive
           uv sync --group tests
@@ -38,38 +44,6 @@ jobs:
         run: uv run --group tests pytest tests
       - name: Run narwhals test suite
         run: uv run --group tests python run_tests.py
-
-  pytest-ffi:
-    # Same as `pytest` but also builds the optional Rust FFI shim
-    # (extra-functions-ffi) so the `mode`/`skew`/`kurtosis` tests don't skip.
-    strategy:
-      matrix:
-        python-version: ["3.12"]
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: "true"
-          cache-suffix: pytest-ffi-${{ matrix.python-version }}
-          cache-dependency-glob: "pyproject.toml"
-      - name: Cache cargo build
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: extra-functions-ffi
-      - name: install-reqs
-        run: |
-          git submodule update --init --recursive
-          uv sync --group tests --group ffi
-      - name: show-deps
-        run: uv pip freeze
-      - name: Run local tests
-        run: uv run --group tests --group ffi pytest tests
 
   lint:
     strategy:

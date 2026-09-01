@@ -375,6 +375,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "datafusion" },
+    { name = "datafusion-extra-functions-ffi" },
     { name = "narwhals" },
     { name = "pyarrow" },
 ]
@@ -382,9 +383,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
-]
-ffi = [
-    { name = "datafusion-extra-functions-ffi" },
 ]
 tests = [
     { name = "hypothesis" },
@@ -397,13 +395,13 @@ tests = [
 [package.metadata]
 requires-dist = [
     { name = "datafusion", specifier = ">=49.0.0" },
+    { name = "datafusion-extra-functions-ffi", directory = "extra-functions-ffi" },
     { name = "narwhals", editable = "narwhals" },
     { name = "pyarrow", specifier = ">=14.0.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]
-ffi = [{ name = "datafusion-extra-functions-ffi", directory = "extra-functions-ffi" }]
 tests = [
     { name = "hypothesis", specifier = ">=6.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
