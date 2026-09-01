@@ -4,9 +4,10 @@ import pytest
 
 pytest.importorskip("datafusion_extra_functions_ffi")
 
-import narwhals as nw
 import pyarrow as pa
 from datafusion import SessionContext
+
+import narwhals as nw
 
 
 def lf(data: dict) -> nw.LazyFrame:

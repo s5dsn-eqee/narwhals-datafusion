@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import datetime as dt
 
-import narwhals as nw
 import pyarrow as pa
 import pytest
 from datafusion import SessionContext
+
+import narwhals as nw
 
 DATA = {
     "a": [1, 2, None, 4],

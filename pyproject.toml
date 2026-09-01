@@ -28,6 +28,9 @@ narwhals-datafusion = 'narwhals_datafusion'
 [tool.hatch.build.targets.wheel]
 packages = ["src/narwhals_datafusion"]
 
+[tool.hatch.build.targets.sdist]
+exclude = ["docs"]
+
 [dependency-groups]
 dev = ["pytest>=8"]
 # Optional Rust FFI shim for `mode`/`skew`/`kurtosis`; needs a Rust toolchain.

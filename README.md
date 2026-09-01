@@ -4,8 +4,6 @@
 [Narwhals](https://github.com/narwhals-dev/narwhals), implemented as an
 out-of-tree plugin via the `narwhals.plugins` entry-point system.
 
-Addresses [narwhals#3225](https://github.com/narwhals-dev/narwhals/issues/3225).
-
 ## Usage
 
 ```python
@@ -44,11 +42,13 @@ abstraction DuckDB, Ibis, and Spark use. The plugin provides:
 
 ## Test status
 
-Running narwhals' own suite (narwhals 2.25, datafusion 54): **~2,850 passed**,
-~165 failed. The failures break down into: engine-unsupported operations
-(listed below), narwhals-core plugin gaps (`nw.scan_csv(backend=module)`,
-`stable.v1`, `.lazy(backend=...)` don't resolve plugin backends), and test
-expectations branched per built-in backend name that don't know "datafusion".
+As of 2026-09-01 (narwhals 2.25.0, datafusion 54.0.0, FFI wheel installed):
+
+- Own suite (`uv run --group ffi pytest tests/`): **34 passed, 1 skipped, 1 xfailed**.
+- Narwhals' full suite from the `narwhals/` submodule: **1,473 passed,
+  136 failed, 1,277 skipped, 14 xfailed** (~92% of executed tests pass).
+- Curated run (`uv run --group tests python run_tests.py`, known failures
+  deselected): green — **1,420 passed, 240 deselected**.
 
 ## Optional: `mode`, `skew`, `kurtosis` via `datafusion-extra-functions`
 
@@ -97,11 +97,23 @@ major version must match the installed `datafusion` release (currently 54).
 
 ## Running narwhals' own test suite against this backend
 
-From a narwhals checkout, with this package installed:
+The narwhals repo is vendored as a git submodule pinned to the targeted
+release:
 
 ```sh
-pytest tests/ --use-external-constructor -p narwhals_datafusion.testing
+git submodule update --init
+uv run --group tests python run_tests.py    # green run; known failures deselected
 ```
+
+For the full, unfiltered run:
+
+```sh
+uv run --group tests pytest narwhals/tests -c narwhals/pyproject.toml \
+    -p narwhals_datafusion.testing -p env --use-external-constructor
+```
+
+Regenerate the deselect list after fixing tests or bumping the submodule with
+`uv run --group tests python update_run_tests.py`.
 
 ## Development status
 
