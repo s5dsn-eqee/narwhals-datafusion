@@ -1,5 +1,7 @@
 # narwhals-datafusion
 
+[![CI](https://github.com/s5dsn-eqee/narwhals-datafusion/actions/workflows/ci.yml/badge.svg)](https://github.com/s5dsn-eqee/narwhals-datafusion/actions/workflows/ci.yml)
+
 [Apache DataFusion](https://datafusion.apache.org/python/) backend for
 [Narwhals](https://github.com/narwhals-dev/narwhals), implemented as an
 out-of-tree plugin via the `narwhals.plugins` entry-point system.
