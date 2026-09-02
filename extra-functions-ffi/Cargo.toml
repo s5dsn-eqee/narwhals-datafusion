@@ -2,6 +2,8 @@
 name = "datafusion-extra-functions-ffi"
 version = "0.1.0"
 edition = "2021"
+# Matches datafusion 54's MSRV; bump alongside the datafusion upgrade below
+rust-version = "1.88.0"
 description = "PyCapsule FFI bindings exposing datafusion-extra-functions (mode, skewness, kurtosis, ...) to datafusion-python"
 license = "Apache-2.0"
 
