@@ -63,11 +63,30 @@ cd extra-functions-ffi && maturin develop --release
 The shim's `datafusion-ffi` major version must match the installed
 `datafusion` release (currently 54).
 
+## API coverage
+
+Status of the narwhals public API on this backend (`narwhals==2.25`,
+`datafusion==54`). ⚠️ entries work with the caveat in parentheses; details in
+[Known limitations](#known-limitations-as-of-datafusion-54).
+
+| Namespace | ✅ Supported | ⚠️ Partial | ❌ Not supported |
+|---|---|---|---|
+| `Expr` | `abs` `alias` `all` `any` `any_value` `ceil` `clip` `cos` `count` `cum_count` `cum_max` `cum_min` `cum_sum` `diff` `exp` `fill_nan` `first` `floor` `is_between` `is_close` `is_duplicated` `is_finite` `is_first_distinct` `is_in` `is_last_distinct` `is_nan` `is_null` `is_unique` `kurtosis` `last` `len` `log` `max` `mean` `median` `min` `null_count` `over` `pipe` `rank` `rolling_mean` `rolling_std` `rolling_sum` `rolling_var` `round` `shift` `sin` `skew` `sqrt` `std` `sum` `var` | `cast` (no `Enum`) · `fill_null` (no `strategy` + `limit`) · `mode` (`keep="any"` only) · `n_unique` (not over windows) · `replace_strict` (explicit `default` required) | `cum_prod` `quantile` |
+| `Expr.str` | `contains` `ends_with` `head` `len_chars` `pad_end` `pad_start` `replace_all` `slice` `split` `starts_with` `strip_chars` `strip_chars_end` `strip_chars_start` `tail` `to_lowercase` `to_uppercase` `zfill` | `to_date`/`to_datetime` (explicit `format` required) · `to_time` (`"HH:MM:SS"`-style only) · `to_titlecase` (no word breaks on digits) | `replace` (use `replace_all`) |
+| `Expr.dt` | `convert_time_zone` `date` `day` `hour` `microsecond` `millisecond` `minute` `month` `nanosecond` `ordinal_day` `second` `to_string` `truncate` `weekday` `year` | `replace_time_zone` (`None`/`"UTC"` only) | `offset_by` `timestamp` `total_microseconds` `total_milliseconds` `total_minutes` `total_nanoseconds` `total_seconds` |
+| `Expr.list` | `contains` `get` `len` `max` `min` `sort` | `unique` (`maintain_order=False` only) | `mean` `median` `sum` |
+| `Expr.struct` | `field` | | |
+| `LazyFrame` | `collect` `collect_schema` `drop` `drop_nulls` `filter` `group_by` `head` `join` `rename` `select` `sort` `top_k` `unique` `unpivot` `with_columns` `with_row_index` | `explode` (single column) · `sink_parquet` (file path only) | `join_asof` |
+
+Not listed: methods narwhals itself doesn't support on *any* lazy/SQL backend
+(`Expr.filter`, `Expr.drop_nulls`, `Expr.unique`, `Expr.map_batches`,
+`Expr.ewm_mean`, `LazyFrame.tail`, `LazyFrame.gather_every`).
+
 ## Known limitations (as of datafusion 54)
 
-- `join_asof`, exact `quantile`, `ewm_mean`,
+- `join_asof`, exact `quantile`,
   `cum_prod`, `list.sum/mean/median`, `dt.total_*`, `dt.offset_by`,
-  `dt.timestamp`, `str.replace(n=...)`, `Enum` casts — no engine support;
+  `dt.timestamp`, `str.replace`, `Enum` casts — no engine support;
   raise `NotImplementedError`.
 - `n_unique().over(...)` raises: DataFusion silently ignores `DISTINCT` inside
   window aggregates, which would return wrong results. (The same engine quirk
