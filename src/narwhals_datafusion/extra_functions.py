@@ -1,10 +1,11 @@
-"""Optional aggregates from `datafusion-extra-functions` (mode, skewness, kurtosis).
+"""Aggregates from `datafusion-extra-functions` (mode, skewness, kurtosis).
 
-The upstream crate is Rust-only; the companion `datafusion-extra-functions-ffi`
-wheel (see `extra-functions-ffi/` in this repo) exposes its aggregate UDFs
-through datafusion-python's `__datafusion_aggregate_udf__` PyCapsule protocol.
-When that wheel is installed, the backend picks the functions up automatically;
-without it, the corresponding narwhals operations raise `NotImplementedError`.
+The upstream crate is Rust-only; the companion
+[`datafusion-extra-functions-ffi`](https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi)
+wheel — a required dependency — exposes its aggregate UDFs through
+datafusion-python's `__datafusion_aggregate_udf__` PyCapsule protocol. The
+lookup still degrades gracefully (raising `NotImplementedError` from the
+narwhals operations) if the wheel is missing or lacks a function.
 """
 
 from __future__ import annotations
@@ -16,8 +17,9 @@ if TYPE_CHECKING:
     from datafusion.user_defined import AggregateUDF
 
 INSTALL_HINT = (
-    "it needs the optional `datafusion-extra-functions-ffi` package "
-    "(FFI bindings for the `datafusion-extra-functions` Rust crate)."
+    "it needs the `datafusion-extra-functions-ffi` package "
+    "(FFI bindings for the `datafusion-extra-functions` Rust crate), "
+    "which is a required dependency -- reinstall `narwhals-datafusion`."
 )
 
 

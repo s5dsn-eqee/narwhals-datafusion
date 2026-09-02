@@ -27,14 +27,8 @@ jobs:
           enable-cache: "true"
           cache-suffix: pytest-${{ matrix.python-version }}
           cache-dependency-glob: "pyproject.toml"
-      - name: Cache cargo build
-        # for the Rust FFI shim (extra-functions-ffi), a required dependency
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: extra-functions-ffi
       - name: install-reqs
-        # narwhals comes editable from the pinned submodule via [tool.uv.sources];
-        # datafusion-extra-functions-ffi is built from extra-functions-ffi/
+        # narwhals comes editable from the pinned submodule via [tool.uv.sources]
         run: |
           git submodule update --init --recursive
           uv sync --group tests

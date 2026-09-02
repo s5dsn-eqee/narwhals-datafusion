@@ -50,7 +50,18 @@ wheels = [
 [[package]]
 name = "datafusion-extra-functions-ffi"
 version = "0.1.0"
-source = { directory = "extra-functions-ffi" }
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "datafusion" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bf/74/1e1a19d502ef8f99da0bef52d75e3eb55c6b852bfd9869c6f3e3128cada2/datafusion_extra_functions_ffi-0.1.0.tar.gz", hash = "sha256:9ed6c0ed5e25d2c4e264755f8e0a07d9acdd60578d578d85ea58ef50c02a6057", size = 26453, upload-time = "2026-09-02T08:16:36.941Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/50/8b/e801e70aec1948eb2b23bb3a1d535e737dd11d87159e7d4f145997113a28/datafusion_extra_functions_ffi-0.1.0-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:c1cf1c9b7e9d8ae39c6f558429e93f0b50d30e3d54693e97b50e151896722907", size = 4676708, upload-time = "2026-09-02T08:16:25.584Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/20/e79496e4636c8b823b5d12c1f9c3d1b4a7dd52a119d0a0725a4aca4bd358/datafusion_extra_functions_ffi-0.1.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:68e2ec5be9439e8df785677734bf869e43acdec7d352f4252c359ef23816496f", size = 4386683, upload-time = "2026-09-02T08:16:28.788Z" },
+    { url = "https://files.pythonhosted.org/packages/4c/c6/fa2f062e24ad20cf5f464fe57053b612e8e14a1eb0d8cdacfc88c0a5babf/datafusion_extra_functions_ffi-0.1.0-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:5f8ac96295bf08fb78cc19c0f29ee10b9df2b83bcee26719904d4318167991c5", size = 4736147, upload-time = "2026-09-02T08:16:31.111Z" },
+    { url = "https://files.pythonhosted.org/packages/60/37/581fbcc6dd3800cb7e5488872138ed37c99df7fcc18398a717ad026f618d/datafusion_extra_functions_ffi-0.1.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:aae8c096289fe4f91205c4a8e03d9c97ef3f17bd8da44a39b83cf12dbd188c0f", size = 6409813, upload-time = "2026-09-02T08:16:33.11Z" },
+    { url = "https://files.pythonhosted.org/packages/47/1e/382509a572f7f43cfab08080c4616e3ebde563dd7c4ff87046f7fd393aa3/datafusion_extra_functions_ffi-0.1.0-cp310-abi3-win_amd64.whl", hash = "sha256:d3d6c92493f1e544a9bcd890d0206d34c0208609aa6d8a73e6b27c2205196168", size = 4958234, upload-time = "2026-09-02T08:16:35.389Z" },
+]
 
 [[package]]
 name = "exceptiongroup"
@@ -395,7 +406,7 @@ tests = [
 [package.metadata]
 requires-dist = [
     { name = "datafusion", specifier = ">=49.0.0" },
-    { name = "datafusion-extra-functions-ffi", directory = "extra-functions-ffi" },
+    { name = "datafusion-extra-functions-ffi", specifier = ">=0.1,<0.2" },
     { name = "narwhals", editable = "narwhals" },
     { name = "pyarrow", specifier = ">=14.0.0" },
 ]

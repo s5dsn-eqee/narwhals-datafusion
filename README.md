@@ -49,19 +49,13 @@ submodule pinned to that release. The plugin provides:
 DataFusion core deliberately keeps its function library lean, so aggregates
 like `mode`/`skewness`/`kurtosis` live in the contrib
 [`datafusion-extra-functions`](https://github.com/datafusion-contrib/datafusion-extra-functions)
-crate (Rust-only, no wheel on PyPI). The `extra-functions-ffi/` directory
-contains an FFI shim that exposes its aggregate UDFs to datafusion-python via
-the `__datafusion_aggregate_udf__` PyCapsule protocol; they back `Expr.mode`,
-`Expr.skew`, and `Expr.kurtosis`. It is a required dependency, built from the
-local path by `uv sync`, or directly:
-
-```sh
-pip install maturin
-cd extra-functions-ffi && maturin develop --release
-```
-
-The shim's `datafusion-ffi` major version must match the installed
-`datafusion` release (currently 54).
+crate (Rust-only, no wheel on PyPI). The
+[`datafusion-extra-functions-ffi`](https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi)
+package — a required dependency, installed as a prebuilt wheel — exposes its
+aggregate UDFs to datafusion-python via the `__datafusion_aggregate_udf__`
+PyCapsule protocol; they back `Expr.mode`, `Expr.skew`, and `Expr.kurtosis`.
+Its FFI ABI is tied to the `datafusion` major it was compiled against
+(currently 54), which the wheel's own dependency pin enforces.
 
 ## API coverage
 
@@ -106,13 +100,9 @@ Not listed: methods narwhals itself doesn't support on *any* lazy/SQL backend
 
 ## Development
 
-A Rust toolchain is required to build this project correctly: the FFI shim in
-`extra-functions-ffi/` is compiled from source (via maturin) when the
-environment is set up.
-
 ```sh
 git submodule update --init      # narwhals, pinned to the targeted release
-uv sync --group tests            # installs deps and builds extra-functions-ffi
+uv sync --group tests
 ```
 
 ## Running narwhals' own test suite against this backend

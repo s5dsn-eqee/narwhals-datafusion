@@ -13,9 +13,9 @@ dependencies = [
   "narwhals>=2.25,<3",
   "datafusion>=49.0.0",
   "pyarrow>=14.0.0",
-  # Rust FFI shim for `mode`/`skew`/`kurtosis` (built from extra-functions-ffi/,
-  # needs a Rust toolchain); part of the package, not an optional extra.
-  "datafusion-extra-functions-ffi",
+  # FFI shim for `mode`/`skew`/`kurtosis`; prebuilt wheels from
+  # https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi
+  "datafusion-extra-functions-ffi>=0.1,<0.2",
 ]
 classifiers = [
   "Programming Language :: Python :: 3",
@@ -47,7 +47,6 @@ tests = [
 ]
 
 [tool.uv.sources]
-datafusion-extra-functions-ffi = { path = "extra-functions-ffi" }
 # narwhals comes editable from the pinned submodule (run
 # `git submodule update --init` after cloning), so the plugin is always
 # developed and tested against the exact internals it targets.
