@@ -10,8 +10,10 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
-  "narwhals>=2.25,<3",
-  "datafusion>=49.0.0",
+  # targets narwhals 2.25 internals (`narwhals._sql`); widen only after testing
+  "narwhals>=2.25,<2.26",
+  # must match the FFI shim's compiled ABI (see extra-functions-ffi dependency)
+  "datafusion>=54,<55",
   "pyarrow>=14.0.0",
   # FFI shim for `mode`/`skew`/`kurtosis`; prebuilt wheels from
   # https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi
@@ -25,6 +27,9 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
 ]
 
+[project.urls]
+Repository = "https://github.com/s5dsn-eqee/narwhals-datafusion"
+
 [project.entry-points.'narwhals.plugins']
 narwhals-datafusion = 'narwhals_datafusion'
 
@@ -32,7 +37,8 @@ narwhals-datafusion = 'narwhals_datafusion'
 packages = ["src/narwhals_datafusion"]
 
 [tool.hatch.build.targets.sdist]
-exclude = ["docs"]
+# ship only what's needed to build the wheel; `narwhals/` is the dev submodule
+exclude = ["docs", "narwhals", "tests", "tmp", ".github", ".hypothesis", "run_tests.py", "update_run_tests.py", "uv.lock"]
 
 [dependency-groups]
 dev = ["pytest>=8"]

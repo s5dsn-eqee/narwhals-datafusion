@@ -1,6 +1,10 @@
 # narwhals-datafusion
 
 [![CI](https://github.com/s5dsn-eqee/narwhals-datafusion/actions/workflows/ci.yml/badge.svg)](https://github.com/s5dsn-eqee/narwhals-datafusion/actions/workflows/ci.yml)
+[![PyPI version](https://badge.fury.io/py/narwhals-datafusion.svg)](https://badge.fury.io/py/narwhals-datafusion)
+[![Downloads](https://static.pepy.tech/badge/narwhals-datafusion/month)](https://pepy.tech/project/narwhals-datafusion)
+[![Trusted publishing](https://img.shields.io/badge/Trusted_publishing-Provides_attestations-bright_green)](https://peps.python.org/pep-0740/)
+[![PYPI - Types](https://img.shields.io/pypi/types/narwhals-datafusion)](https://pypi.org/project/narwhals-datafusion)
 
 [Apache DataFusion](https://datafusion.apache.org/python/) backend for
 [Narwhals](https://github.com/narwhals-dev/narwhals), implemented as an

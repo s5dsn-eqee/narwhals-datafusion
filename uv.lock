@@ -405,7 +405,7 @@ tests = [
 
 [package.metadata]
 requires-dist = [
-    { name = "datafusion", specifier = ">=49.0.0" },
+    { name = "datafusion", specifier = ">=54,<55" },
     { name = "datafusion-extra-functions-ffi", specifier = ">=0.1,<0.2" },
     { name = "narwhals", editable = "narwhals" },
     { name = "pyarrow", specifier = ">=14.0.0" },
