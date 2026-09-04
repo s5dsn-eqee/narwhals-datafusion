@@ -72,7 +72,8 @@ For each test that is **new** in the list, decide which it is:
 | New narwhals API not yet implemented | `AttributeError`/`not_implemented` on a method this backend lacks | implement it, or add it to the README matrix's unsupported column with the reason |
 | narwhals changed an internal contract | failure inside `narwhals/_sql` or `_compliant` calling this backend | fix the backend to the new contract; read the DuckDB backend's diff for the same release |
 | Engine bug or missing feature | DataFusion error text | add a `datafusion-workarounds` entry if worked around, or a `NotImplementedError` with a clear message |
-| Flaky / ordering | passes on rerun, or asserts row order without a sort | check whether the test is wrong for lazy backends; upstream tests usually sort first. Put such tests in `ORDER_DEPENDENT_TESTS` in `run_tests.py`, which the regenerator never rewrites, so they stay deselected even when they pass locally |
+| Flaky / ordering | passes on rerun, or asserts row order without a sort | check whether the test is wrong for lazy backends; upstream tests usually sort first. Put such tests in `ALWAYS_DESELECTED` in `run_tests.py`, which the regenerator never rewrites, so they stay deselected even when they pass locally |
+| CI-only | passes locally, fails on GitHub Actions (e.g. `test_package_version` asserts only when `CI=true`) | `ALWAYS_DESELECTED`, with a comment saying why |
 
 For each test that **left** the list, confirm it passes for the right reason
 and move its method in the README matrix if a caveat no longer applies.

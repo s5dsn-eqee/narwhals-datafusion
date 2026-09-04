@@ -77,13 +77,19 @@ TESTS_THAT_NEED_FIX: list[str] = [
     "test_with_row_index",
 ]
 
-# Always deselected, independent of `update_run_tests.py`: these assert row
-# order after `concat` without sorting, and DataFusion's union output order is
-# not deterministic under multi-partition execution (they pass on a quiet
-# machine and flip on loaded 4-core CI runners).
-ORDER_DEPENDENT_TESTS: list[str] = ["test_concat_diagonal", "test_concat_vertical"]
+# Always deselected, independent of `update_run_tests.py`, because they pass
+# locally and fail only in CI, so the regenerator would keep dropping them.
+ALWAYS_DESELECTED: list[str] = [
+    # assert row order after `concat` without sorting; DataFusion's union
+    # output order is not deterministic under multi-partition execution
+    "test_concat_diagonal",
+    "test_concat_vertical",
+    # greps the *current directory's* pyproject.toml for narwhals' version and
+    # asserts only under GitHub Actions; ours has no static version line
+    "test_package_version",
+]
 
-DESELECTED = [*TESTS_THAT_NEED_FIX, *ORDER_DEPENDENT_TESTS]
+DESELECTED = [*TESTS_THAT_NEED_FIX, *ALWAYS_DESELECTED]
 
 command = [
     "pytest",
