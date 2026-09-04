@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from pathlib import Path
 
 TESTS_THAT_NEED_FIX: list[str] = [
     "test_cast_datetime_tz_aware",
@@ -91,9 +92,16 @@ ALWAYS_DESELECTED: list[str] = [
 
 DESELECTED = [*TESTS_THAT_NEED_FIX, *ALWAYS_DESELECTED]
 
+# Extra arguments pass through to pytest. Paths among them replace the default
+# target, so `run_tests.py narwhals/tests/frame` narrows the run instead of
+# being unioned with the whole suite.
+extra = sys.argv[1:]
+targets = [arg for arg in extra if Path(arg).exists()] or ["narwhals/tests"]
+options = [arg for arg in extra if not Path(arg).exists()]
+
 command = [
     "pytest",
-    "narwhals/tests",
+    *targets,
     # use narwhals' own pytest config (env vars like TZ=UTC, warning filters)
     "-c",
     "narwhals/pyproject.toml",
@@ -106,7 +114,7 @@ command = [
 if DESELECTED:
     command += ["-k", f"not ({' or '.join(DESELECTED)})"]
 
-command.extend(sys.argv[1:])
+command.extend(options)
 
 try:
     subprocess.run(command, check=True)
