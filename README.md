@@ -106,6 +106,8 @@ git submodule update --init      # narwhals, pinned to the targeted release
 uv sync --group tests
 ```
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
+
 ## Running narwhals' own test suite against this backend
 
 The narwhals repo is vendored as a git submodule pinned to the targeted

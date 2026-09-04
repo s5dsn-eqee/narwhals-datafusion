@@ -3,7 +3,8 @@
 This file is for agents working **on** narwhals-datafusion (developing,
 testing, reviewing, releasing). To **use** the package, read the
 [README](README.md): it has the usage snippet, the API coverage matrix and the
-known limitations.
+known limitations. The human-facing workflow is in
+[CONTRIBUTING.md](CONTRIBUTING.md); this file adds what an agent needs on top.
 
 ## What this project is
 
