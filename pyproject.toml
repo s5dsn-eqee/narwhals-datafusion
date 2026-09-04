@@ -50,7 +50,6 @@ exclude = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8"]
 # Deps for running narwhals' own suite from the `narwhals/` submodule
 # (daft-style): `uv run --group tests python run_tests.py`.
 tests = [
