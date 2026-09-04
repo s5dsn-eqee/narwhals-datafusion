@@ -45,6 +45,7 @@ packages = ["src/narwhals_datafusion"]
 exclude = [
   "docs", "narwhals", "tests", "tmp", ".github", ".hypothesis",
   "run_tests.py", "update_run_tests.py", "uv.lock",
+  ".ai", ".claude", "AGENTS.md", "CLAUDE.md",
 ]
 
 [dependency-groups]

@@ -17,14 +17,15 @@ target/
 .vscode/
 .idea/
 
+# Claude Code: local state only; `.claude/skills` is a tracked symlink to .ai/skills
+.claude/*
+!.claude/skills
+
 # IPython / Jupyter
 .ipynb_checkpoints/
 profile_default/
 ipython_config.py
 *.ipynb
-
-# Claude Code
-.claude/
 
 # Local-only docs (kept out of git and any publishing)
 docs/
