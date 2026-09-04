@@ -66,10 +66,22 @@ with Sigstore and creates the GitHub release with generated notes. If the test
 job fails nothing is published; fix, delete the tag locally and remotely, and
 re-tag.
 
+**PEP 740 attestations** are generated and uploaded by the publish action
+automatically, but only while the publish job keeps both `id-token: write`
+and `environment: pypi`. Removing either silently drops them; the README's
+"PEP 740 attested" badge would then be a lie. Verify after each release:
+
+```bash
+curl -s https://pypi.org/integrity/narwhals-datafusion/<version>/<wheel filename>/provenance \
+  | jq '.attestation_bundles | length'     # expect 1
+```
+
 ## After publishing
 
 - Install from PyPI in a fresh venv and run a one-liner that exercises
   `mode` or `skew`, which proves the shim wheel resolved for that platform.
+- Confirm the PyPI project page shows "Trusted publishing, provides
+  attestations" under the new files (see the curl check above).
 - Badges in the README are proxied by GitHub's Camo cache. If a badge shows
   stale or empty right after a release, purge it with `curl -X PURGE <camo url>`
   or wait a day.

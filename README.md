@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/s5dsn-eqee/narwhals-datafusion/actions/workflows/ci.yml/badge.svg)](https://github.com/s5dsn-eqee/narwhals-datafusion/actions/workflows/ci.yml)
 [![PyPI version](https://badge.fury.io/py/narwhals-datafusion.svg)](https://badge.fury.io/py/narwhals-datafusion)
+[![PEP 740](https://img.shields.io/badge/PEP%20740-attested-3775A9?logo=pypi&logoColor=white)](https://pypi.org/project/narwhals-datafusion/#files)
 [![Downloads](https://static.pepy.tech/badge/narwhals-datafusion/month)](https://pepy.tech/project/narwhals-datafusion)
 
 [Apache DataFusion](https://datafusion.apache.org/python/) backend for
