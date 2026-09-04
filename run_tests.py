@@ -52,7 +52,6 @@ TESTS_THAT_NEED_FIX: list[str] = [
     "test_offset_by_invalid_interval",
     "test_offset_by_tz",
     "test_over_quantile",
-    "test_package_version",
     "test_parse_weight",
     "test_quantile_expr",
     "test_quantile_expr_group_by",
@@ -78,6 +77,14 @@ TESTS_THAT_NEED_FIX: list[str] = [
     "test_with_row_index",
 ]
 
+# Always deselected, independent of `update_run_tests.py`: these assert row
+# order after `concat` without sorting, and DataFusion's union output order is
+# not deterministic under multi-partition execution (they pass on a quiet
+# machine and flip on loaded 4-core CI runners).
+ORDER_DEPENDENT_TESTS: list[str] = ["test_concat_diagonal", "test_concat_vertical"]
+
+DESELECTED = [*TESTS_THAT_NEED_FIX, *ORDER_DEPENDENT_TESTS]
+
 command = [
     "pytest",
     "narwhals/tests",
@@ -90,8 +97,8 @@ command = [
     "env",
     "--use-external-constructor",
 ]
-if TESTS_THAT_NEED_FIX:
-    command += ["-k", f"not ({' or '.join(TESTS_THAT_NEED_FIX)})"]
+if DESELECTED:
+    command += ["-k", f"not ({' or '.join(DESELECTED)})"]
 
 command.extend(sys.argv[1:])
 

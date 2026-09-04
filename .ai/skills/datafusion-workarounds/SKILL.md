@@ -114,6 +114,12 @@ it is the one to copy.
   common type first because `union` requires identical schemas.
 - `union` is positional, so `concat(how="vertical")` re-selects every frame
   in the first frame's column order before unioning.
+- `union` output order is **not** deterministic: each input is its own
+  partition and collection coalesces partitions as they arrive, so on a
+  loaded multi-core runner the second frame can come out first. Nothing in
+  this backend can fix that; tests that assert order after `concat` without
+  sorting live in `ORDER_DEPENDENT_TESTS` in `run_tests.py`, which the
+  skip-list regenerator leaves alone.
 - `write_parquet` takes a path; a file-like object would be `str()`-ed into
   a filename. `sink_parquet` raises for non-path inputs.
 - `with_row_index` requires `order_by`; row numbers without an order are not

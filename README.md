@@ -95,8 +95,9 @@ Not listed: methods narwhals itself doesn't support on *any* lazy/SQL backend
 - `str.to_datetime`/`to_date` require an explicit `format`.
 - `replace_strict` requires an explicit `default`.
 - `str.to_titlecase` uses `initcap`, which doesn't break words on digits.
-- No row-order guarantees except after `sort` (standard for SQL engines);
-  backward `fill_null` may reorder rows.
+- No row-order guarantees except after `sort` (standard for SQL engines):
+  `concat` may interleave its inputs and backward `fill_null` may reorder
+  rows. Sort explicitly when order matters.
 
 ## Development
 
