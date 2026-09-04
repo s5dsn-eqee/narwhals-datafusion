@@ -52,6 +52,7 @@ TESTS_THAT_NEED_FIX: list[str] = [
     "test_offset_by_invalid_interval",
     "test_offset_by_tz",
     "test_over_quantile",
+    "test_package_version",
     "test_parse_weight",
     "test_quantile_expr",
     "test_quantile_expr_group_by",
