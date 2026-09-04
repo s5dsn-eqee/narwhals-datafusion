@@ -59,6 +59,10 @@ tests = [
   "pytest-randomly",
   "pytest-xdist",
   "hypothesis>=6.0.0",
+  # eager targets for `collect(backend=...)`; also un-skips narwhals tests
+  # that import them
+  "pandas",
+  "polars",
 ]
 typing = ["pyright"]
 

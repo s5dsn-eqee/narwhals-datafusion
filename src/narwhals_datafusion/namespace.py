@@ -71,6 +71,9 @@ class DataFusionNamespace(
     def _lazyframe(self) -> type[DataFusionLazyFrame]:
         return DataFusionLazyFrame
 
+    # NOTE: `nw.scan_csv`/`nw.scan_parquet` cannot reach these yet: narwhals'
+    # `Implementation.from_backend` has no plugin path and asserts on UNKNOWN
+    # (narwhals 2.25). Kept so the namespace is complete for when it does.
     def scan_csv(
         self, source: NormalizedPath, *, separator: str = ",", **kwds: Any
     ) -> DataFusionLazyFrame:

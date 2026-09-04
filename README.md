@@ -95,6 +95,9 @@ Not listed: methods narwhals itself doesn't support on *any* lazy/SQL backend
   `convert_time_zone` for instant-preserving conversions.
 - `str.to_datetime`/`to_date` require an explicit `format`.
 - `replace_strict` requires an explicit `default`.
+- `nw.scan_csv`/`nw.scan_parquet` cannot dispatch to a plugin backend yet
+  (narwhals gap); read with a DataFusion `SessionContext` and pass the frame
+  to `nw.from_native`.
 - `str.to_titlecase` uses `initcap`, which doesn't break words on digits.
 - No row-order guarantees except after `sort` (standard for SQL engines):
   `concat` may interleave its inputs and backward `fill_null` may reorder

@@ -309,6 +309,83 @@ def test_struct_and_list_namespaces() -> None:
     assert result == {"ln": [1, 2], "mx": [5, 3]}
 
 
+def test_dt_subsecond_parts() -> None:
+    # `date_part('millisecond')` etc. include the whole seconds; we subtract them.
+    native = SessionContext().from_arrow(
+        pa.table(
+            {"t": pa.array([dt.datetime(2024, 3, 5, 10, 30, 20, 123456)], type=pa.timestamp("us"))}
+        )
+    )
+    result = to_dict(
+        nw.from_native(native).select(
+            ms=nw.col("t").dt.millisecond(),
+            us=nw.col("t").dt.microsecond(),
+            ns=nw.col("t").dt.nanosecond(),
+        )
+    )
+    assert result == {"ms": [123], "us": [123456], "ns": [123456000]}
+
+
+def test_dt_replace_time_zone_utc_and_none() -> None:
+    native = SessionContext().from_arrow(
+        pa.table({"t": pa.array([dt.datetime(2024, 3, 5, 10)], type=pa.timestamp("us"))})
+    )
+    lf = nw.from_native(native)
+    aware = lf.select(nw.col("t").dt.replace_time_zone("UTC"))
+    assert aware.collect_schema()["t"] == nw.Datetime("us", "UTC")
+    naive = aware.select(nw.col("t").dt.replace_time_zone(None))
+    assert naive.collect_schema()["t"] == nw.Datetime("us", None)
+    assert to_dict(naive)["t"] == [dt.datetime(2024, 3, 5, 10)]
+    with pytest.raises(NotImplementedError, match="non-UTC"):
+        lf.select(nw.col("t").dt.replace_time_zone("Europe/Berlin"))
+
+
+def test_dt_truncate_multiples() -> None:
+    # Multiples go through `date_bin` anchored at the epoch, not `date_trunc`.
+    native = SessionContext().from_arrow(
+        pa.table({"t": pa.array([dt.datetime(2023, 5, 5, 7, 13, 42)], type=pa.timestamp("us"))})
+    )
+    lf = nw.from_native(native)
+    result = to_dict(
+        lf.select(
+            q=nw.col("t").dt.truncate("2q"),
+            d=nw.col("t").dt.truncate("3d"),
+            m=nw.col("t").dt.truncate("15m"),
+            s=nw.col("t").dt.truncate("1s"),
+        )
+    )
+    assert result == {
+        "q": [dt.datetime(2023, 1, 1)],
+        "d": [dt.datetime(2023, 5, 5)],
+        "m": [dt.datetime(2023, 5, 5, 7)],
+        "s": [dt.datetime(2023, 5, 5, 7, 13, 42)],
+    }
+
+
+def test_collect_to_pandas_and_polars() -> None:
+    lf = nw.from_native(df_native()).sort("c")
+    pandas_df = lf.collect(backend="pandas")
+    assert pandas_df.implementation is nw.Implementation.PANDAS
+    assert pandas_df["b"].to_list() == ["x", "x", "y", "z"]
+    polars_df = lf.collect(backend="polars")
+    assert polars_df.implementation is nw.Implementation.POLARS
+    assert polars_df["b"].to_list() == ["x", "x", "y", "z"]
+
+
+def test_documented_refusals() -> None:
+    # Each of these is a deliberate `NotImplementedError` rather than a wrong
+    # answer; see the README's "Known limitations".
+    lf = nw.from_native(df_native())
+    with pytest.raises(NotImplementedError, match="n_unique"):
+        lf.select(nw.col("a").n_unique().over("b"))
+    with pytest.raises(NotImplementedError, match="limit"):
+        lf.select(nw.col("a").fill_null(strategy="forward", limit=1).over(order_by="c"))
+    with pytest.raises(NotImplementedError, match="keep='all'"):
+        lf.select(nw.col("a").mode(keep="all"))
+    with pytest.raises(TypeError, match="same schema"):
+        nw.concat([lf, lf.rename({"a": "z"})], how="vertical")
+
+
 def test_arrow_pycapsule_handoff() -> None:
     # A narwhals eager frame can hop into DataFusion zero-copy via Arrow.
     pytest.importorskip("polars")

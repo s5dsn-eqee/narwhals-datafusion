@@ -92,6 +92,8 @@ class DataFusionExprDateTimeNamespace(SQLExprDateTimeNamesSpace["DataFusionExpr"
         # which matches polars' truncation semantics.
         months, days, nanos = 0, 0, 0
         if unit == "y":
+            # narwhals currently rejects year multiples other than 1 upstream
+            # (`Interval.parse`), so this branch is future-proofing.
             months = 12 * multiple
         elif unit == "q":
             months = 3 * multiple
