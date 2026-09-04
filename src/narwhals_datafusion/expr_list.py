@@ -19,13 +19,13 @@ class DataFusionExprListNamespace(
     LazyExprNamespace["DataFusionExpr"], ListNamespace["DataFusionExpr"]
 ):
     def len(self) -> DataFusionExpr:
-        return self.compliant._with_elementwise(lambda expr: F.array_length(expr))
+        return self.compliant._with_elementwise(F.array_length)
 
     def unique(self, *, maintain_order: bool) -> DataFusionExpr:
         if maintain_order:
             msg = "`maintain_order=True` is not supported for the DataFusion backend."
             raise NotImplementedError(msg)
-        return self.compliant._with_elementwise(lambda expr: F.array_distinct(expr))
+        return self.compliant._with_elementwise(F.array_distinct)
 
     def contains(self, item: NonNestedLiteral) -> DataFusionExpr:
         return self.compliant._with_elementwise(lambda expr: F.array_has(expr, lit(item)))
@@ -34,10 +34,10 @@ class DataFusionExprListNamespace(
         return self.compliant._with_elementwise(lambda expr: F.array_element(expr, lit(index + 1)))
 
     def min(self) -> DataFusionExpr:
-        return self.compliant._with_elementwise(lambda expr: F.array_min(expr))
+        return self.compliant._with_elementwise(F.array_min)
 
     def max(self) -> DataFusionExpr:
-        return self.compliant._with_elementwise(lambda expr: F.array_max(expr))
+        return self.compliant._with_elementwise(F.array_max)
 
     def sort(self, *, descending: bool, nulls_last: bool) -> DataFusionExpr:
         return self.compliant._with_elementwise(

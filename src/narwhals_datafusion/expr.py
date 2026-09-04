@@ -287,7 +287,7 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
         return self._with_callable(lambda expr: F.sum(expr.is_null().cast(pa.int64())))
 
     def is_nan(self) -> Self:
-        return self._with_elementwise(lambda expr: F.isnan(expr))
+        return self._with_elementwise(F.isnan)
 
     def is_finite(self) -> Self:
         def func(expr: Expr) -> Expr:
@@ -341,7 +341,7 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
         def _fill_constant(expr: Expr, value: Expr) -> Expr:
             return F.nvl(expr, value)
 
-        assert value is not None  # noqa: S101
+        assert value is not None
         return self._with_elementwise(_fill_constant, expression_args={"value": value})
 
     def cast(self, dtype: IntoDType) -> Self:
@@ -432,19 +432,17 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
                 "Hint: Use `nw.col(...).mode(keep='any')` instead."
             )
             raise NotImplementedError(msg)
-        fn = self._extra_udaf("mode", "mode")
-        return self._with_callable(lambda expr: fn(expr))
+        return self._with_callable(self._extra_udaf("mode", "mode"))
 
     def kurtosis(self) -> Self:
-        fn = self._extra_udaf("kurtosis_pop", "kurtosis")
-        return self._with_callable(lambda expr: fn(expr))
+        return self._with_callable(self._extra_udaf("kurtosis_pop", "kurtosis"))
 
     def skew(self) -> Self:
         # The crate's `skewness` matches duckdb's (bias-adjusted, G1); narwhals
         # wants the population coefficient (g1), so undo the adjustment and
         # pin down the small-sample edge cases, mirroring the duckdb backend.
         fn = self._extra_udaf("skewness", "skew")
-        W = self._window_expression  # noqa: N806
+        W = self._window_expression
 
         def _correct(skewness: Expr, count: Expr) -> Expr:
             sample_skewness = skewness * (count - lit(2)) / F.sqrt(count * (count - lit(1)))

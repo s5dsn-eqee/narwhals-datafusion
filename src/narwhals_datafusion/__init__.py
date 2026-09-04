@@ -16,7 +16,7 @@ __version__ = "0.1.0"
 NATIVE_PACKAGE = "datafusion"
 
 
-def __narwhals_namespace__(version: Version) -> DataFusionNamespace:  # noqa: N807
+def __narwhals_namespace__(version: Version) -> DataFusionNamespace:
     from narwhals_datafusion.namespace import DataFusionNamespace
 
     return DataFusionNamespace(version=version)

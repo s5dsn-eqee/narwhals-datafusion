@@ -164,14 +164,14 @@ class DataFusionLazyFrame(
         selection = [value.alias(name) for name, value in evaluate_exprs_and_aliases(self, *exprs)]
         try:
             return self._with_native(self.native.aggregate([], selection))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             raise catch_datafusion_exception(e, self) from None
 
     def select(self, *exprs: DataFusionExpr) -> Self:
         selection = [value.alias(name) for name, value in evaluate_exprs_and_aliases(self, *exprs)]
         try:
             return self._with_native(self.native.select(*selection))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             raise catch_datafusion_exception(e, self) from None
 
     def with_columns(self, *exprs: DataFusionExpr) -> Self:
@@ -183,14 +183,14 @@ class DataFusionLazyFrame(
         result.extend(value.alias(name) for name, value in new_columns_map.items())
         try:
             return self._with_native(self.native.select(*result))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             raise catch_datafusion_exception(e, self) from None
 
     def _filter(self, predicate: DataFusionExpr) -> Self:
         mask = predicate(self)[0]
         try:
             return self._with_native(self.native.filter(mask))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             raise catch_datafusion_exception(e, self) from None
 
     def drop(self, columns: Sequence[str], *, strict: bool) -> Self:
@@ -290,8 +290,8 @@ class DataFusionLazyFrame(
         right_columns = other.columns
 
         if how in {"semi", "anti"}:
-            assert left_on is not None  # noqa: S101
-            assert right_on is not None  # noqa: S101
+            assert left_on is not None
+            assert right_on is not None
             joined = self.native.join(
                 other.native,
                 left_on=list(left_on),
@@ -314,8 +314,8 @@ class DataFusionLazyFrame(
         if how == "cross":
             joined = self.native.join_on(rhs, lit(True), how="inner")
         else:
-            assert left_on is not None  # noqa: S101
-            assert right_on is not None  # noqa: S101
+            assert left_on is not None
+            assert right_on is not None
             joined = self.native.join(
                 rhs,
                 left_on=list(left_on),
@@ -342,7 +342,7 @@ class DataFusionLazyFrame(
 
         try:
             return self._with_native(joined.select(*selection))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             raise catch_datafusion_exception(e, self) from None
 
     def explode(self, columns: Sequence[str]) -> Self:

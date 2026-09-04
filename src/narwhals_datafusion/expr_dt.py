@@ -20,8 +20,6 @@ from narwhals._utils import not_implemented
 from narwhals_datafusion.utils import lit
 
 if TYPE_CHECKING:
-    from datafusion.expr import Expr
-
     from narwhals_datafusion.expr import DataFusionExpr
 
 UNITS_DICT = {
@@ -46,30 +44,26 @@ NS_PER_UNIT = {
 }
 
 
-def _date_part(part: str, expr: Expr) -> Expr:
-    return F.date_part(part, expr)
-
-
 class DataFusionExprDateTimeNamespace(SQLExprDateTimeNamesSpace["DataFusionExpr"]):
     def millisecond(self) -> DataFusionExpr:
         # `date_part('millisecond')` includes whole seconds.
         return self.compliant._with_elementwise(
             lambda expr: (
-                _date_part("millisecond", expr) - _date_part("second", expr) * lit(MS_PER_SECOND)
+                F.date_part("millisecond", expr) - F.date_part("second", expr) * lit(MS_PER_SECOND)
             )
         )
 
     def microsecond(self) -> DataFusionExpr:
         return self.compliant._with_elementwise(
             lambda expr: (
-                _date_part("microsecond", expr) - _date_part("second", expr) * lit(US_PER_SECOND)
+                F.date_part("microsecond", expr) - F.date_part("second", expr) * lit(US_PER_SECOND)
             )
         )
 
     def nanosecond(self) -> DataFusionExpr:
         return self.compliant._with_elementwise(
             lambda expr: (
-                _date_part("nanosecond", expr) - _date_part("second", expr) * lit(NS_PER_SECOND)
+                F.date_part("nanosecond", expr) - F.date_part("second", expr) * lit(NS_PER_SECOND)
             )
         )
 
@@ -80,7 +74,7 @@ class DataFusionExprDateTimeNamespace(SQLExprDateTimeNamesSpace["DataFusionExpr"
         # datafusion `dow`: 0 = Sunday .. 6 = Saturday
         # narwhals/polars weekday: 1 = Monday .. 7 = Sunday
         return self.compliant._with_elementwise(
-            lambda expr: ((_date_part("dow", expr) + lit(6)) % lit(7)) + lit(1)
+            lambda expr: ((F.date_part("dow", expr) + lit(6)) % lit(7)) + lit(1)
         )
 
     def date(self) -> DataFusionExpr:

@@ -90,6 +90,6 @@ class DataFusionExprStringNamespace(SQLExprStringNamespace["DataFusionExpr"]):
         return self.compliant._with_elementwise(func).cast(time_dtype)
 
     def to_titlecase(self) -> DataFusionExpr:
-        return self.compliant._with_elementwise(lambda expr: F.initcap(expr))
+        return self.compliant._with_elementwise(F.initcap)
 
     replace = not_implemented()
