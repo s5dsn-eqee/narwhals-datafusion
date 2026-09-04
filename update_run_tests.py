@@ -39,9 +39,7 @@ def update_run_tests() -> None:
     )
     print(result.stdout[-3000:])
 
-    failed_tests = re.findall(
-        r"(?:FAILED|ERROR) narwhals/tests/.*\.py::(\w+)\[?", result.stdout
-    )
+    failed_tests = re.findall(r"(?:FAILED|ERROR) narwhals/tests/.*\.py::(\w+)\[?", result.stdout)
 
     summary = re.search(r"(\d+) (?:failed|error)", result.stdout)
     if summary and not failed_tests:

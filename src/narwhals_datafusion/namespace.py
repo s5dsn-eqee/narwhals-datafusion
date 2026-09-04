@@ -32,6 +32,7 @@ from narwhals_datafusion.utils import (
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
+    import datafusion  # noqa: F401  (string base-class parameter below)
     from datafusion.expr import Expr
     from narwhals._compliant.window import WindowInputs
     from narwhals._utils import Version
@@ -45,7 +46,8 @@ if TYPE_CHECKING:
 
 
 class DataFusionNamespace(
-    SQLNamespace[DataFusionLazyFrame, DataFusionExpr, "DataFrame", "Expr"],
+    # same `columns`-less native frame caveat as in dataframe.py
+    SQLNamespace[DataFusionLazyFrame, DataFusionExpr, "datafusion.DataFrame", "Expr"],  # pyright: ignore[reportInvalidTypeArguments]
     AlignDiagonal[DataFusionLazyFrame, DataFusionExpr],
 ):
     _implementation: Implementation = Implementation.UNKNOWN

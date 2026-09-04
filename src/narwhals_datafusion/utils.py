@@ -190,7 +190,7 @@ def window_expression(
     flags = extend_bool(False, len(order_by))
     descending = descending or flags
     nulls_last = nulls_last or flags
-    order = [
+    order: list[SortExpr | Expr | str] | None = [
         sort_expr(by, descending=desc, nulls_last=nl)
         for by, desc, nl in zip(order_by, descending, nulls_last, strict=True)
     ] or None

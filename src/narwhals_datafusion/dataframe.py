@@ -49,8 +49,11 @@ if TYPE_CHECKING:
     from narwhals_datafusion.namespace import DataFusionNamespace
 
 
+# `datafusion.DataFrame` has no `columns` property, so it does not structurally
+# satisfy narwhals' `NativeLazyFrame` protocol that bounds these type
+# variables. Runtime dispatch goes through `is_native`, so this is type-only.
 class DataFusionLazyFrame(
-    SQLLazyFrame["DataFusionExpr", "datafusion.DataFrame", "LazyFrame[datafusion.DataFrame]"]
+    SQLLazyFrame["DataFusionExpr", "datafusion.DataFrame", "LazyFrame[datafusion.DataFrame]"]  # pyright: ignore[reportInvalidTypeArguments]
 ):
     _implementation = Implementation.UNKNOWN
 
@@ -74,7 +77,7 @@ class DataFusionLazyFrame(
     def from_native(cls, data: datafusion.DataFrame, /, *, context: _LimitedContext) -> Self:
         return cls(data, version=context._version)
 
-    def to_narwhals(self) -> LazyFrame[datafusion.DataFrame]:
+    def to_narwhals(self) -> LazyFrame[datafusion.DataFrame]:  # pyright: ignore[reportInvalidTypeArguments]
         return self._version.lazyframe(self, level="lazy")
 
     def __narwhals_lazyframe__(self) -> Self:
@@ -289,7 +292,7 @@ class DataFusionLazyFrame(
         left_columns = self.columns
         right_columns = other.columns
 
-        if how in {"semi", "anti"}:
+        if how in ("semi", "anti"):  # tuple, so pyright narrows the literal
             assert left_on is not None
             assert right_on is not None
             joined = self.native.join(

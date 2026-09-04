@@ -88,7 +88,7 @@ uv run --group tests python -m pytest narwhals/tests -c narwhals/pyproject.toml 
 ## Step 5 — verify and record
 
 ```bash
-uvx ruff check .
+uvx pre-commit run --all-files
 uv run --group tests pytest tests
 uv run --group tests python run_tests.py    # must be green
 ```

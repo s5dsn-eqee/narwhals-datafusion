@@ -45,7 +45,8 @@ packages = ["src/narwhals_datafusion"]
 exclude = [
   "docs", "narwhals", "tests", "tmp", ".github", ".hypothesis",
   "run_tests.py", "update_run_tests.py", "uv.lock",
-  ".ai", ".claude", "AGENTS.md", "CLAUDE.md", "CONTRIBUTING.md",
+  ".ai", ".claude", "AGENTS.md", "CLAUDE.md", "CONTRIBUTING.md", ".pre-commit-config.yaml",
+  "test_plugin_protocol.py",
 ]
 
 [dependency-groups]
@@ -59,6 +60,7 @@ tests = [
   "pytest-xdist",
   "hypothesis>=6.0.0",
 ]
+typing = ["pyright"]
 
 [tool.uv.sources]
 # narwhals comes editable from the pinned submodule (run
@@ -68,6 +70,22 @@ narwhals = { path = "narwhals", editable = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# daft-style: `uv run --group typing pyright` (CI runs it on 3.12)
+[tool.pyright]
+pythonPlatform = "All"
+typeCheckingMode = "basic"
+reportMissingTypeArgument = "error"
+reportMissingImports = "none"
+reportMissingModuleSource = "none"
+reportPrivateImportUsage = "none"
+reportPrivateUsage = "none"
+reportUnusedExpression = "none"
+# `tests` is left out: every `nw.from_native(datafusion.DataFrame)` fails the
+# `IntoLazyFrame` bound because datafusion's DataFrame has no `columns`
+# property (see the ignores in dataframe.py).
+include = ["src", "test_plugin_protocol.py"]
+exclude = ["narwhals", ".venv"]
 
 # Standalone lint config (decoupled from the narwhals repo's root settings).
 [tool.ruff]

@@ -47,7 +47,7 @@ package.
 
 ```bash
 # 1. checks
-uvx ruff check .
+uvx pre-commit run --all-files
 uv run --group tests pytest tests
 uv run --group tests python run_tests.py
 uv build && uvx twine check dist/*

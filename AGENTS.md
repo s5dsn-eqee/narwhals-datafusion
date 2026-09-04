@@ -43,12 +43,15 @@ writing code that meets the stated condition, not tasks to run on request.
 ```sh
 git submodule update --init          # narwhals at the pinned tag
 uv sync --group tests
-uvx ruff check .                     # CI runs exactly this; formatting is not enforced
+uvx pre-commit run --all-files       # ruff format + check, codespell, typos; CI runs exactly this
+uv run --group typing pyright        # package, tests, and test_plugin_protocol.py
 uv run --group tests pytest tests    # this package's own suite (fast)
 uv run --group tests python run_tests.py   # narwhals' suite, known failures deselected
 ```
 
-All three checks must pass before a commit. The full unfiltered narwhals run
+All four checks must pass before a commit. `test_plugin_protocol.py` is a
+static check that the package satisfies narwhals' `Plugin` protocol, not a
+pytest test; pyright is what runs it. The full unfiltered narwhals run
 and how to interpret it are described in the `sync-narwhals` skill.
 
 ## Conventions

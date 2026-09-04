@@ -22,12 +22,19 @@ package in editable mode, and installs narwhals editable from the submodule
 uv sync --group tests
 ```
 
-## Running checks
-
-Lint (this is exactly what CI runs; formatting is not enforced):
+Install the pre-commit hooks so formatting, lint and spelling run on every
+commit:
 
 ```console
-uvx ruff check .
+uvx pre-commit install
+```
+
+## Running checks
+
+Lint, format and spell-check. This is exactly what CI runs:
+
+```console
+uvx pre-commit run --all-files
 ```
 
 This package's own tests:
@@ -49,7 +56,15 @@ replace the script's own `-k` deselect expression; narrow by path instead:
 uv run --group tests python run_tests.py -x narwhals/tests/frame/join_test.py
 ```
 
-All three must pass before you open a pull request.
+Type-checking. `test_plugin_protocol.py` at the repo root is not a pytest
+test: it is a static assertion that the package satisfies narwhals' `Plugin`
+protocol, checked here:
+
+```console
+uv run --group typing pyright
+```
+
+All four must pass before you open a pull request.
 
 ## Adding or fixing functionality
 

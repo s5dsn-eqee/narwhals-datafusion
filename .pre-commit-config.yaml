@@ -1,0 +1,33 @@
+# Modelled on narwhals-daft. Install once with `uvx pre-commit install`;
+# CI runs the same hooks via `uvx pre-commit run --all-files`.
+ci:
+  autoupdate_schedule: monthly
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.20
+    hooks:
+      - id: ruff-format
+      - id: ruff-check
+        args: [--fix]
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.2
+    hooks:
+      - id: codespell
+        files: \.(py|rst|md)$
+        args: [--ignore-words-list=set]
+  - repo: https://github.com/adhtruong/mirrors-typos
+    # mirror avoids the autoupdate issue in crate-ci/typos#390
+    rev: v1.48.0
+    hooks:
+      - id: typos
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: name-tests-test
+        args: [--pytest-test-first]
+      - id: end-of-file-fixer
+        exclude: \.svg$
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-toml

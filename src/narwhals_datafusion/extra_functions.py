@@ -32,6 +32,7 @@ def extra_udaf(name: str) -> AggregateUDF | None:
     from datafusion import udaf
 
     try:
-        return udaf(ffi.udaf_by_name(name))
+        # the extension module ships no stubs, so its attributes are unknown
+        return udaf(ffi.udaf_by_name(name))  # pyright: ignore[reportAttributeAccessIssue]
     except KeyError:  # pragma: no cover - future crate versions
         return None
