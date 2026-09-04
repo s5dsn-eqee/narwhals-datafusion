@@ -30,6 +30,8 @@ def update_run_tests() -> None:
             "--tb",
             "no",
             "-v",
+            # PY_COLORS=1 in CI would put ANSI codes between FAILED and the path
+            "--color=no",
         ],
         check=False,
         capture_output=True,
@@ -40,6 +42,11 @@ def update_run_tests() -> None:
     failed_tests = re.findall(
         r"(?:FAILED|ERROR) narwhals/tests/.*\.py::(\w+)\[?", result.stdout
     )
+
+    summary = re.search(r"(\d+) (?:failed|error)", result.stdout)
+    if summary and not failed_tests:
+        msg = "pytest reported failures but none were parsed; refusing to write"
+        raise SystemExit(msg)
 
     formatted_tests = ",\n    ".join(f'"{t}"' for t in sorted(set(failed_tests)))
 
