@@ -10,7 +10,28 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    # gate: never publish a tag whose tests don't pass
+    runs-on: ubuntu-latest
+    env:
+      PYTEST_ADDOPTS: "--numprocesses=logical"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: Run tests
+        run: |
+          uv sync --group tests
+          uv run --group tests pytest tests
+          uv run --group tests python run_tests.py
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

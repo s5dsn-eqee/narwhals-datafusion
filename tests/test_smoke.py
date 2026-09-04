@@ -243,6 +243,26 @@ def test_unpivot() -> None:
     assert result == {"id": [1, 1], "variable": ["a", "b"], "value": [10, 20]}
 
 
+def test_unpivot_empty_on() -> None:
+    native = SessionContext().from_arrow(pa.table({"id": [1]}))
+    result = to_dict(nw.from_native(native).unpivot(on=[], index=["id"]))
+    assert result == {"id": [], "variable": [], "value": []}
+
+
+def test_drop_nulls_empty_subset() -> None:
+    # Regression: an empty subset must be a no-op, not an empty `reduce()`.
+    lf = nw.from_native(df_native())
+    assert to_dict(lf.drop_nulls(subset=[]).sort("c")) == to_dict(lf.sort("c"))
+
+
+def test_str_to_time_with_format() -> None:
+    # Regression: `format` used to be ignored, surfacing a raw cast error.
+    native = SessionContext().from_arrow(pa.table({"s": ["12.34.56", None]}))
+    lf = nw.from_native(native)
+    result = to_dict(lf.select(nw.col("s").str.to_time("%H.%M.%S")))
+    assert result == {"s": [dt.time(12, 34, 56), None]}
+
+
 def test_with_row_index() -> None:
     lf = nw.from_native(df_native())
     result = to_dict(lf.with_row_index("idx", order_by="c").sort("idx"))

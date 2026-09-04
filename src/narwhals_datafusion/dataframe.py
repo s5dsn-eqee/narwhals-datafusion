@@ -190,8 +190,8 @@ class DataFusionLazyFrame(
         mask = predicate(self)[0]
         try:
             return self._with_native(self.native.filter(mask))
-        except Exception as e:
-            raise catch_datafusion_exception(e, self) from e
+        except Exception as e:  # noqa: BLE001
+            raise catch_datafusion_exception(e, self) from None
 
     def drop(self, columns: Sequence[str], *, strict: bool) -> Self:
         columns_to_drop = parse_columns_to_drop(self, columns, strict=strict)
@@ -200,6 +200,8 @@ class DataFusionLazyFrame(
 
     def drop_nulls(self, subset: Sequence[str] | None) -> Self:
         subset_ = subset if subset is not None else self.columns
+        if not subset_:
+            return self
         keep_condition = reduce(and_, (col(name).is_not_null() for name in subset_))
         return self._with_native(self.native.filter(keep_condition))
 
@@ -318,7 +320,7 @@ class DataFusionLazyFrame(
                 rhs,
                 left_on=list(left_on),
                 right_on=[tmp_names[name] for name in right_on],
-                how="full" if how == "full" else how,
+                how=how,
                 coalesce_duplicate_keys=False,
             )
 
@@ -389,6 +391,15 @@ class DataFusionLazyFrame(
     ) -> Self:
         index_ = [] if index is None else list(index)
         on_ = [c for c in self.columns if c not in index_] if on is None else list(on)
+        if not on_:
+            # Nothing to melt: keep the index columns and an empty
+            # variable/value pair, as polars does.
+            empty = self.native.select(
+                *(col(c) for c in index_),
+                lit(None).cast(pa.string()).alias(variable_name),
+                lit(None).alias(value_name),
+            )
+            return self._with_native(empty.filter(lit(False)))
 
         # `union` requires matching schemas, so promote mixed numeric value
         # columns to a common type up front.

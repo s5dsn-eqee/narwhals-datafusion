@@ -4,7 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "narwhals-datafusion"
-version = "0.1.0"
+# single source of truth: `__version__` in src/narwhals_datafusion/__init__.py
+dynamic = ["version"]
 description = "Apache DataFusion backend for Narwhals, via the Narwhals plugin system"
 readme = "README.md"
 license = "MIT"
@@ -33,12 +34,18 @@ Repository = "https://github.com/s5dsn-eqee/narwhals-datafusion"
 [project.entry-points.'narwhals.plugins']
 narwhals-datafusion = 'narwhals_datafusion'
 
+[tool.hatch.version]
+path = "src/narwhals_datafusion/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/narwhals_datafusion"]
 
 [tool.hatch.build.targets.sdist]
 # ship only what's needed to build the wheel; `narwhals/` is the dev submodule
-exclude = ["docs", "narwhals", "tests", "tmp", ".github", ".hypothesis", "run_tests.py", "update_run_tests.py", "uv.lock"]
+exclude = [
+  "docs", "narwhals", "tests", "tmp", ".github", ".hypothesis",
+  "run_tests.py", "update_run_tests.py", "uv.lock",
+]
 
 [dependency-groups]
 dev = ["pytest>=8"]

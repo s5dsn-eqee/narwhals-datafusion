@@ -4,7 +4,15 @@ from typing import TYPE_CHECKING
 
 import pyarrow as pa
 from datafusion import functions as F
-from narwhals._constants import MS_PER_SECOND, NS_PER_SECOND, US_PER_SECOND
+from narwhals._constants import (
+    MS_PER_SECOND,
+    NS_PER_MICROSECOND,
+    NS_PER_MILLISECOND,
+    NS_PER_MINUTE,
+    NS_PER_SECOND,
+    SECONDS_PER_MINUTE,
+    US_PER_SECOND,
+)
 from narwhals._duration import Interval
 from narwhals._sql.expr_dt import SQLExprDateTimeNamesSpace
 from narwhals._utils import not_implemented
@@ -26,6 +34,15 @@ UNITS_DICT = {
     "s": "second",
     "ms": "millisecond",
     "us": "microsecond",
+}
+
+NS_PER_UNIT = {
+    "h": NS_PER_MINUTE * SECONDS_PER_MINUTE,
+    "m": NS_PER_MINUTE,
+    "s": NS_PER_SECOND,
+    "ms": NS_PER_MILLISECOND,
+    "us": NS_PER_MICROSECOND,
+    "ns": 1,
 }
 
 
@@ -88,16 +105,8 @@ class DataFusionExprDateTimeNamespace(SQLExprDateTimeNamesSpace["DataFusionExpr"
             months = multiple
         elif unit == "d":
             days = multiple
-        elif unit in {"h", "m", "s", "ms", "us", "ns"}:
-            per_unit = {
-                "h": 3_600_000_000_000,
-                "m": 60_000_000_000,
-                "s": 1_000_000_000,
-                "ms": 1_000_000,
-                "us": 1_000,
-                "ns": 1,
-            }
-            nanos = multiple * per_unit[unit]
+        elif unit in NS_PER_UNIT:
+            nanos = multiple * NS_PER_UNIT[unit]
         else:  # pragma: no cover
             msg = f"Truncating by {every!r} is not supported for the DataFusion backend."
             raise NotImplementedError(msg)

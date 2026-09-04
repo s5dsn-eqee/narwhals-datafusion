@@ -382,7 +382,6 @@ typing = [
 
 [[package]]
 name = "narwhals-datafusion"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "datafusion" },

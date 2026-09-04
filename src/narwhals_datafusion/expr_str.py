@@ -72,9 +72,22 @@ class DataFusionExprStringNamespace(SQLExprStringNamespace["DataFusionExpr"]):
         return compliant_expr.cast(compliant_expr._version.dtypes.Date())
 
     def to_time(self, format: str | None) -> DataFusionExpr:
-        # Arrow's cast parses "HH:MM:SS"-style strings directly; a time-only
-        # format can't round-trip through `to_timestamp` (no date part).
-        return self.compliant.cast(self.compliant._version.dtypes.Time())
+        time_dtype = self.compliant._version.dtypes.Time()
+        if format is None:
+            # Arrow's cast parses "HH:MM:SS"-style strings directly.
+            return self.compliant.cast(time_dtype)
+
+        # `to_timestamp` needs a date part, so parse against the epoch day and
+        # cast the timestamp down to a time. `concat` turns a null into
+        # "1970-01-01 " (a parse error), hence the explicit null branch.
+        import pyarrow as pa
+
+        def func(expr: Expr) -> Expr:
+            parsed = F.to_timestamp(F.concat(lit("1970-01-01 "), expr), lit(f"%Y-%m-%d {format}"))
+            null = lit(None).cast(pa.timestamp("ns"))
+            return F.when(expr.is_null(), null).otherwise(parsed)
+
+        return self.compliant._with_elementwise(func).cast(time_dtype)
 
     def to_titlecase(self) -> DataFusionExpr:
         return self.compliant._with_elementwise(lambda expr: F.initcap(expr))
