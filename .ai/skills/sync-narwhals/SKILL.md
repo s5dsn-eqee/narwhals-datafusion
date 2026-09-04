@@ -45,10 +45,19 @@ uv run --group tests python -m pytest narwhals/tests \
 `-c narwhals/pyproject.toml` matters: it applies narwhals' own pytest config
 (`TZ=UTC`, warning filters). `narwhals_datafusion.testing` is the plugin that
 substitutes a DataFusion frame for the `constructor` fixture and skips
-eager-only tests. Expect on the order of 2,800 passes, 900 skips and 60-odd
-failures with pandas and polars installed (the `tests` group includes them;
-without them roughly half the suite skips). The last commit that touched
-`run_tests.py` is the reference for the previous count.
+eager-only tests. Reference numbers at narwhals 2.25.0 with pandas and
+polars installed (the `tests` group includes them; without them roughly half
+the suite skips):
+
+| Run | Result |
+|---|---|
+| unfiltered (this command) | 151 failed, 2,853 passed, 943 skipped, 21 xfailed |
+| unique failing test *names* | 62 (each name has several parametrizations) |
+| curated `run_tests.py` | 2,782 passed, 902 skipped, 264 deselected, 20 xfailed |
+
+`TESTS_THAT_NEED_FIX` holds names, not cases, so its length tracks the 62,
+not the 151. The last commit that touched `run_tests.py` is the reference
+for the previous counts.
 
 ## Step 3 — regenerate the skip list
 
