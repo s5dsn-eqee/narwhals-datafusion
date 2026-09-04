@@ -16,9 +16,13 @@ consistent is this skill.
 
 ```bash
 git -C narwhals fetch --tags
-git -C narwhals checkout vX.Y.Z          # or: git submodule update --remote narwhals
+git -C narwhals checkout vX.Y.Z
 git -C narwhals describe --tags          # confirm
 ```
+
+Always check out a `v*` tag. `git submodule update --remote` tracks narwhals'
+`main` branch, which drifts past the release the pin names; the weekly
+workflow picks the newest tag for the same reason.
 
 Then edit `pyproject.toml`: `narwhals>=X.Y,<X.(Y+1)`. The upper bound is one
 minor above the lower bound on purpose; widen it only after the suite passes

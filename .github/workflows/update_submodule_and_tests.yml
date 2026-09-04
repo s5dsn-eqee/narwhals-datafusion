@@ -32,9 +32,13 @@ jobs:
           cache-suffix: pytest-${{ matrix.python-version }}
           cache-dependency-glob: "pyproject.toml"
       - name: update-submodule
+        # track narwhals releases (v* tags), not the main branch
         run: |
           git submodule update --init --recursive
-          git submodule update --remote narwhals
+          git -C narwhals fetch --tags --quiet origin
+          tag=$(git -C narwhals tag --list 'v[0-9]*' --sort=-v:refname | head -n 1)
+          git -C narwhals checkout --quiet "$tag"
+          echo "narwhals at $tag"
       - name: install-reqs
         run: uv sync --group tests
       - name: show-deps
