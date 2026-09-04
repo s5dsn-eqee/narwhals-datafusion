@@ -48,10 +48,17 @@ def update_run_tests() -> None:
         msg = "pytest reported failures but none were parsed; refusing to write"
         raise SystemExit(msg)
 
-    formatted_tests = ",\n    ".join(f'"{t}"' for t in sorted(set(failed_tests)))
-
     run_tests_path = Path(__file__).parent / "run_tests.py"
     content = run_tests_path.read_text(encoding="utf-8")
+
+    # Names in ALWAYS_DESELECTED are handled there (CI-only or order-dependent
+    # failures); keep them out of the regenerated list so a run in CI does not
+    # churn it.
+    always = re.search(r"ALWAYS_DESELECTED(?:: list\[str\])?\s*=\s*\[(.*?)\]", content, re.DOTALL)
+    permanent = set(re.findall(r'"(\w+)"', always.group(1))) if always else set()
+    recorded = sorted(set(failed_tests) - permanent)
+
+    formatted_tests = ",\n    ".join(f'"{t}"' for t in recorded)
     new_content = re.sub(
         r"TESTS_THAT_NEED_FIX(?:: list\[str\])?\s*=\s*\[.*?\]",
         f"TESTS_THAT_NEED_FIX: list[str] = [\n    {formatted_tests},\n]",
@@ -60,7 +67,7 @@ def update_run_tests() -> None:
         flags=re.DOTALL,
     )
     run_tests_path.write_text(new_content, encoding="utf-8")
-    print(f"\nRecorded {len(set(failed_tests))} failing test names in run_tests.py")
+    print(f"\nRecorded {len(recorded)} failing test names in run_tests.py")
 
 
 if __name__ == "__main__":
