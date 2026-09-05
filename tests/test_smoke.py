@@ -143,8 +143,7 @@ def test_unique() -> None:
 
 
 def test_unique_keep_none_with_order_by() -> None:
-    # Regression: the group-size count window must not inherit `order_by`,
-    # which would turn it into a running count and keep one row per group.
+    # regression: the group-size count must not inherit `order_by` (running count)
     native = SessionContext().from_arrow(pa.table({"g": ["a", "a", "b"], "i": [1, 2, 3]}))
     lf = nw.from_native(native)
     result = to_dict(lf.unique(subset=["g"], keep="none", order_by="i").sort("i"))
@@ -163,13 +162,13 @@ def test_sink_parquet(tmp_path) -> None:
         "y",
         "z",
     ]
-    # Regression: a buffer must raise instead of writing to a repr-named file.
+    # regression: a buffer must raise, not write a repr-named file
     with pytest.raises(NotImplementedError, match="file-like"):
         lf.sink_parquet(io.BytesIO())
 
 
 def test_mean_horizontal_all_null_row() -> None:
-    # Regression: an all-null row must yield null, not NaN (0.0/0).
+    # regression: all-null row is null, not NaN
     native = SessionContext().from_arrow(pa.table({"x": [1.0, None], "y": [2.0, None]}))
     lf = nw.from_native(native)
     result = to_dict(lf.select(m=nw.mean_horizontal("x", "y")))
@@ -250,13 +249,13 @@ def test_unpivot_empty_on() -> None:
 
 
 def test_drop_nulls_empty_subset() -> None:
-    # Regression: an empty subset must be a no-op, not an empty `reduce()`.
+    # regression: empty subset is a no-op, not an empty `reduce()`
     lf = nw.from_native(df_native())
     assert to_dict(lf.drop_nulls(subset=[]).sort("c")) == to_dict(lf.sort("c"))
 
 
 def test_str_to_time_with_format() -> None:
-    # Regression: `format` used to be ignored, surfacing a raw cast error.
+    # regression: `format` was ignored
     native = SessionContext().from_arrow(pa.table({"s": ["12.34.56", None]}))
     lf = nw.from_native(native)
     result = to_dict(lf.select(nw.col("s").str.to_time("%H.%M.%S")))
@@ -310,7 +309,7 @@ def test_struct_and_list_namespaces() -> None:
 
 
 def test_dt_subsecond_parts() -> None:
-    # `date_part('millisecond')` etc. include the whole seconds; we subtract them.
+    # `date_part('millisecond')` etc. include whole seconds
     native = SessionContext().from_arrow(
         pa.table(
             {"t": pa.array([dt.datetime(2024, 3, 5, 10, 30, 20, 123456)], type=pa.timestamp("us"))}
@@ -341,7 +340,7 @@ def test_dt_replace_time_zone_utc_and_none() -> None:
 
 
 def test_dt_truncate_multiples() -> None:
-    # Multiples go through `date_bin` anchored at the epoch, not `date_trunc`.
+    # multiples use `date_bin` anchored at the epoch
     native = SessionContext().from_arrow(
         pa.table({"t": pa.array([dt.datetime(2023, 5, 5, 7, 13, 42)], type=pa.timestamp("us"))})
     )
@@ -373,8 +372,7 @@ def test_collect_to_pandas_and_polars() -> None:
 
 
 def test_documented_refusals() -> None:
-    # Each of these is a deliberate `NotImplementedError` rather than a wrong
-    # answer; see the README's "Known limitations".
+    # deliberate refusals, listed under README "Known limitations"
     lf = nw.from_native(df_native())
     with pytest.raises(NotImplementedError, match="n_unique"):
         lf.select(nw.col("a").n_unique().over("b"))
@@ -387,7 +385,7 @@ def test_documented_refusals() -> None:
 
 
 def test_arrow_pycapsule_handoff() -> None:
-    # A narwhals eager frame can hop into DataFusion zero-copy via Arrow.
+    # eager frame into DataFusion via Arrow
     pytest.importorskip("polars")
     import polars as pl
 

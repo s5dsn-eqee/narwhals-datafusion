@@ -46,7 +46,7 @@ NS_PER_UNIT = {
 
 class DataFusionExprDateTimeNamespace(SQLExprDateTimeNamesSpace["DataFusionExpr"]):
     def millisecond(self) -> DataFusionExpr:
-        # `date_part('millisecond')` includes whole seconds.
+        # `date_part('millisecond')` includes whole seconds
         return self.compliant._with_elementwise(
             lambda expr: (
                 F.date_part("millisecond", expr) - F.date_part("second", expr) * lit(MS_PER_SECOND)
@@ -71,8 +71,7 @@ class DataFusionExprDateTimeNamespace(SQLExprDateTimeNamesSpace["DataFusionExpr"
         return self.compliant._with_elementwise(lambda expr: F.to_char(expr, lit(format)))
 
     def weekday(self) -> DataFusionExpr:
-        # datafusion `dow`: 0 = Sunday .. 6 = Saturday
-        # narwhals/polars weekday: 1 = Monday .. 7 = Sunday
+        # `dow` is 0=Sunday..6=Saturday; narwhals weekday is 1=Monday..7=Sunday
         return self.compliant._with_elementwise(
             lambda expr: ((F.date_part("dow", expr) + lit(6)) % lit(7)) + lit(1)
         )
@@ -88,12 +87,10 @@ class DataFusionExprDateTimeNamespace(SQLExprDateTimeNamesSpace["DataFusionExpr"
         if multiple == 1 and unit in UNITS_DICT:
             precision = UNITS_DICT[unit]
             return self.compliant._with_elementwise(lambda expr: F.date_trunc(precision, expr))
-        # Multiples truncate via fixed-stride bins anchored at the epoch,
-        # which matches polars' truncation semantics.
+        # multiples: `date_bin` anchored at the epoch, polars semantics
         months, days, nanos = 0, 0, 0
         if unit == "y":
-            # narwhals currently rejects year multiples other than 1 upstream
-            # (`Interval.parse`), so this branch is future-proofing.
+            # narwhals' `Interval.parse` rejects year multiples other than 1 today
             months = 12 * multiple
         elif unit == "q":
             months = 3 * multiple
@@ -114,7 +111,7 @@ class DataFusionExprDateTimeNamespace(SQLExprDateTimeNamesSpace["DataFusionExpr"
         if time_zone is None:
             return self.compliant._with_elementwise(lambda expr: expr.cast(pa.timestamp("us")))
         if time_zone == "UTC":
-            # Wall time equals UTC time, so attaching the zone is a plain cast.
+            # wall time equals UTC time: attaching the zone is a plain cast
             return self.compliant._with_elementwise(
                 lambda expr: expr.cast(pa.timestamp("us")).cast(pa.timestamp("us", tz="UTC"))
             )

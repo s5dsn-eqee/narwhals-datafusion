@@ -40,8 +40,7 @@ jobs:
           git -C narwhals checkout --quiet "$tag"
           echo "narwhals at $tag"
       - name: install-reqs
-        # with the extra, or the regenerated skip list would deselect
-        # mode/skew/kurtosis
+        # without the extra the regenerated skip list would deselect mode/skew/kurtosis
         run: uv sync --group tests --extra extra-functions
       - name: show-deps
         run: uv pip freeze
@@ -56,11 +55,9 @@ jobs:
           delete-branch: true
 
   latest-datafusion:
-    # `datafusion>=54` has no ceiling, so users get a new datafusion major the
-    # day it ships. Run both suites on the newest release so a breaking major
-    # goes red here first. Without the extra: the shim pins the datafusion
-    # major it was built for, so with it the resolver would stay on the old
-    # major. mode/skew/kurtosis tests are excluded for the same reason.
+    # Early warning: newest datafusion past the cap, both suites. Red means work
+    # before the cap moves, not broken users. No extra (its shim would hold
+    # datafusion at its own major), so its three tests are excluded.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -72,10 +69,14 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
       - name: install-reqs
-        run: uv sync --group tests --upgrade-package datafusion
+        # `uv pip install` ignores the project bounds; `--no-sync` below keeps
+        # `uv run` from restoring the locked version
+        run: |
+          uv sync --group tests
+          uv pip install --upgrade datafusion
       - name: show-deps
         run: uv pip freeze | grep -i datafusion
       - name: Run local tests
-        run: uv run --group tests pytest tests
+        run: uv run --no-sync pytest tests
       - name: Run narwhals test suite
-        run: uv run --group tests python run_tests.py -k "not mode and not skew and not kurtosis"
+        run: uv run --no-sync python run_tests.py -k "not mode and not skew and not kurtosis"

@@ -1,11 +1,7 @@
-"""Aggregates from `datafusion-extra-functions` (mode, skewness, kurtosis).
-
-The upstream crate is Rust-only; the companion
-[`datafusion-extra-functions-ffi`](https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi)
-wheel — the `extra-functions` optional extra — exposes its aggregate UDFs
-through datafusion-python's `__datafusion_aggregate_udf__` PyCapsule protocol.
-Without the extra the lookup returns `None` and the narwhals operations raise
-`NotImplementedError` pointing at it.
+"""`mode`, `skewness`, `kurtosis` from the `datafusion-extra-functions-ffi` wheel
+(the `extra-functions` extra), via the `__datafusion_aggregate_udf__` capsule
+protocol. Without it `extra_udaf` returns `None` and callers raise
+`NotImplementedError`.
 """
 
 from __future__ import annotations

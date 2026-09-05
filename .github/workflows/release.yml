@@ -1,7 +1,6 @@
 name: Release
 
-# daft-style: build -> validate -> publish to PyPI (trusted publishing) ->
-# signed GitHub release. https://github.com/narwhals-dev/narwhals-daft
+# test -> build -> publish to PyPI (trusted publishing) -> signed GitHub release
 on:
   push:
     tags: ["v[0-9]+.[0-9]+.[0-9]+*"]

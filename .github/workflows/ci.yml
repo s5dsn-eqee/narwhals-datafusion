@@ -32,7 +32,7 @@ jobs:
           cache-suffix: pytest-${{ matrix.python-version }}
           cache-dependency-glob: "pyproject.toml"
       - name: install-reqs
-        # narwhals comes editable from the pinned submodule via [tool.uv.sources]
+        # narwhals is editable from the submodule ([tool.uv.sources])
         run: |
           git submodule update --init --recursive
           uv sync --group tests --extra extra-functions
@@ -44,8 +44,7 @@ jobs:
         run: uv run --group tests python run_tests.py
 
   pytest-without-extra:
-    # the base install must import and work; `mode`/`skew`/`kurtosis` raise
-    # NotImplementedError pointing at the extra (tests/test_extra_functions.py)
+    # bare install: mode/skew/kurtosis raise NotImplementedError naming the extra
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

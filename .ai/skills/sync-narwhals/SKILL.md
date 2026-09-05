@@ -1,108 +1,84 @@
 ---
 name: sync-narwhals
-description: Bump the vendored narwhals submodule to a new release, regenerate the TESTS_THAT_NEED_FIX skip list, triage every newly failing narwhals test into a known-limitation bucket or a bug, and update the README version markers. Use after a narwhals release, when the weekly auto-update PR arrives, or when run_tests.py stops being green.
+description: Bump the vendored narwhals submodule to a new release, regenerate the TESTS_THAT_NEED_FIX skip list, triage every newly failing narwhals test, and update the README version markers. Use after a narwhals release, when the weekly auto-update PR arrives, or when run_tests.py stops being green.
 argument-hint: "[target] (e.g., \"v2.26.0\", \"latest\", or omit to re-triage the current submodule tag)"
 ---
 
 # Sync the narwhals submodule
 
-This backend targets narwhals' private `_sql` layer, so every narwhals
-release can move the ground under it. `pyproject.toml` only has a floor
-(`narwhals>=2.25`), so users get new releases immediately; the submodule at
-`narwhals/` is the exact tag the plugin was last tested against, and
-`run_tests.py` runs narwhals' own suite against this backend with a curated
-skip list. Keeping the submodule, the skip list and the code consistent with
-the newest release is this skill.
+The backend targets narwhals' private `_sql` layer and the pin is a floor, so
+every narwhals release reaches users at once. The `narwhals/` submodule is the
+tag last tested; `run_tests.py` runs narwhals' suite with a curated skip list.
+This skill keeps submodule, skip list and code consistent with the newest
+release.
 
-## Step 1 — bump the submodule
+## 1. Bump the submodule
 
 ```bash
 git -C narwhals fetch --tags
-git -C narwhals checkout vX.Y.Z
-git -C narwhals describe --tags          # confirm
+git -C narwhals checkout vX.Y.Z      # a v* tag, never main
+uv sync --group tests --extra extra-functions
 ```
 
-Always check out a `v*` tag. `git submodule update --remote` tracks narwhals'
-`main` branch, which drifts past the release the pin names; the weekly
-workflow picks the newest tag for the same reason.
+The weekly workflow (`update_submodule_and_tests.yml`) does this and opens a
+PR. A large `run_tests.py` diff or an import/attribute error in its CI means a
+private hook moved: fix the code and cut a patch release, users are already on
+the new narwhals. Scheduled workflows do not run on forks; use
+`workflow_dispatch` or these steps.
 
-`uv sync --group tests --extra extra-functions` picks up the editable
-submodule through `[tool.uv.sources]`. Leave the `narwhals>=` floor alone
-unless the code now needs something the floor release lacks; never add a
-ceiling (see AGENTS.md conventions).
-
-The weekly GitHub workflow (`update_submodule_and_tests.yml`) does the
-submodule bump and the skip-list regeneration and opens a PR. A PR from it
-whose diff to `run_tests.py` is large, or whose CI fails on an import or
-attribute error, means the new release moved a private hook this backend
-subclasses; that is a code fix and a patch release, because users on the new
-narwhals are already hitting it. GitHub does not run scheduled workflows on
-forks; on a fork, trigger it with `workflow_dispatch` or follow the steps
-below locally.
-
-## Step 2 — run the full, unfiltered suite
+## 2. Full unfiltered run
 
 ```bash
-mkdir -p tmp    # gitignored scratch directory
+mkdir -p tmp    # gitignored
 uv run --group tests python -m pytest narwhals/tests \
   -c narwhals/pyproject.toml -p narwhals_datafusion.testing -p env \
   --use-external-constructor --tb=short -q --color=no 2>&1 | tee tmp/full-run.txt
 ```
 
-`-c narwhals/pyproject.toml` matters: it applies narwhals' own pytest config
-(`TZ=UTC`, warning filters). `narwhals_datafusion.testing` is the plugin that
-substitutes a DataFusion frame for the `constructor` fixture and skips
-eager-only tests. Reference numbers at narwhals 2.25.0 with pandas and
-polars installed (the `tests` group includes them; without them roughly half
-the suite skips):
+`-c narwhals/pyproject.toml` applies narwhals' pytest config (`TZ=UTC`,
+warning filters); `narwhals_datafusion.testing` substitutes a DataFusion frame
+for the `constructor` fixture and skips eager-only tests. Reference at narwhals
+2.25.0 with pandas and polars installed:
 
 | Run | Result |
 |---|---|
-| unfiltered (this command) | 151 failed, 2,853 passed, 943 skipped, 21 xfailed |
-| unique failing test *names* | 62 (each name has several parametrizations) |
-| curated `run_tests.py` | 2,782 passed, 902 skipped, 264 deselected, 20 xfailed |
+| unfiltered | 151 failed, 2,853 passed, 943 skipped, 21 xfailed |
+| unique failing names | 62 |
+| `run_tests.py` | 2,782 passed, 902 skipped, 264 deselected, 20 xfailed |
 
-`TESTS_THAT_NEED_FIX` holds names, not cases, so its length tracks the 62,
-not the 151. The last commit that touched `run_tests.py` is the reference
-for the previous counts.
+`TESTS_THAT_NEED_FIX` holds names, so its length tracks the 62.
 
-## Step 3 — regenerate the skip list
+## 3. Regenerate the skip list
 
 ```bash
 uv run --group tests python update_run_tests.py
 git diff run_tests.py
 ```
 
-The script reruns the suite with `--color=no`, parses `FAILED`/`ERROR` lines,
-and rewrites `TESTS_THAT_NEED_FIX`. It refuses to write when pytest reports
-failures but none were parsed; if you see that message, the output format
-changed and the regex in `update_run_tests.py` needs updating. Never commit an
-emptied list.
+The script parses `FAILED`/`ERROR` lines and rewrites `TESTS_THAT_NEED_FIX`. It
+refuses to write when pytest reports failures but none were parsed; then the
+output format changed and the regex needs updating. Never commit an emptied
+list.
 
-## Step 4 — triage the diff, one name at a time
-
-For each test that is **new** in the list, decide which it is:
+## 4. Triage each new name
 
 | Bucket | Evidence | Action |
 |---|---|---|
-| Existing known limitation | matches a README "Known limitations" entry | keep in list, no other change |
-| New narwhals API not yet implemented | `AttributeError`/`not_implemented` on a method this backend lacks | implement it, or add it to the README matrix's unsupported column with the reason |
-| narwhals changed an internal contract | failure inside `narwhals/_sql` or `_compliant` calling this backend | fix the backend to the new contract; read the DuckDB backend's diff for the same release |
-| Engine bug or missing feature | DataFusion error text | add a `datafusion-workarounds` entry if worked around, or a `NotImplementedError` with a clear message |
-| Flaky / ordering | passes on rerun, or asserts row order without a sort | check whether the test is wrong for lazy backends; upstream tests usually sort first. Put such tests in `ALWAYS_DESELECTED` in `run_tests.py`, which the regenerator never rewrites, so they stay deselected even when they pass locally |
-| CI-only | passes locally, fails on GitHub Actions (e.g. `test_package_version` asserts only when `CI=true`) | `ALWAYS_DESELECTED`, with a comment saying why |
+| Known limitation | matches a README "Known limitations" entry | keep |
+| New narwhals API | `AttributeError`/`not_implemented` on a method this backend lacks | implement, or add to the README unsupported column with the reason |
+| Changed internal contract | failure inside `narwhals/_sql` or `_compliant` | fix to the new contract; read the DuckDB backend's diff for that release |
+| Engine bug or gap | DataFusion error text | workaround plus `datafusion-workarounds` entry, or `NotImplementedError` |
+| Order-dependent or CI-only | passes on rerun, asserts row order without sort, or asserts only under `CI=true` | `ALWAYS_DESELECTED` in `run_tests.py` with a comment; the regenerator leaves it alone |
 
-For each test that **left** the list, confirm it passes for the right reason
-and move its method in the README matrix if a caveat no longer applies.
-
-A convenient way to see one failure in full:
+For each name that left the list, confirm it passes for the right reason and
+move its README cell if a caveat no longer applies. One failure in full:
 
 ```bash
 uv run --group tests python -m pytest narwhals/tests -c narwhals/pyproject.toml \
   -p narwhals_datafusion.testing -p env --use-external-constructor -k test_name -x
 ```
 
-## Step 5 — verify and record
+## 5. Verify and record
 
 ```bash
 uvx pre-commit run --all-files
@@ -110,19 +86,13 @@ uv run --group tests pytest tests
 uv run --group tests python run_tests.py    # must be green
 ```
 
-Update in the same commit:
-
-- `README.md`: the "currently X.Y" in the Architecture section, the header of
-  the coverage matrix (`narwhals==X.Y`) and any rows that moved.
-- The reference numbers table in Step 2 of this skill.
-
-Commit message stays one line, e.g. `bump narwhals to 2.26, retriage skip list`.
+Same commit: README Architecture version, coverage matrix header and moved
+rows; the reference table in step 2. Commit message, e.g.
+`bump narwhals to 2.26, retriage skip list`.
 
 ## Gotchas
 
-- `PY_COLORS=1` is set in CI. The parser in `update_run_tests.py` passes
-  `--color=no` to defeat it; keep that flag if you edit the command.
-- `pytest-randomly` is in the test group. A failure that only appears under
-  one seed is order-dependent; rerun with `-p no:randomly` to confirm.
-- The narwhals suite parametrizes on `constructor`; a test name in the skip
-  list matches every parametrization, which is what you want.
+- CI sets `PY_COLORS=1`; `update_run_tests.py` passes `--color=no` to parse.
+- `pytest-randomly` is installed; a failure under one seed is order-dependent,
+  confirm with `-p no:randomly`.
+- A skip-list name matches every `constructor` parametrization.

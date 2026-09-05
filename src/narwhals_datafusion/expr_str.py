@@ -22,8 +22,7 @@ def _char_class(characters: str) -> str:
 
 class DataFusionExprStringNamespace(SQLExprStringNamespace["DataFusionExpr"]):
     def strip_chars(self, characters: str | None) -> DataFusionExpr:
-        # datafusion's `btrim` only takes a single argument, so custom (and
-        # whitespace-class) trims go through a regex instead.
+        # `btrim` takes one argument: character-set trims go through a regex
         chars = _char_class(string.whitespace if characters is None else characters)
         pattern = f"^[{chars}]+|[{chars}]+$"
         return self.compliant._with_elementwise(
@@ -56,8 +55,7 @@ class DataFusionExprStringNamespace(SQLExprStringNamespace["DataFusionExpr"]):
             raise NotImplementedError(msg)
 
         if "%z" in format or "%Z" in format:
-            # datafusion parses the offset and normalizes to UTC, but returns a
-            # naive timestamp; re-attach the UTC zone.
+            # `%z`/`%Z` parse to UTC but return a naive timestamp: re-attach the zone
             import pyarrow as pa
 
             return self.compliant._with_elementwise(
@@ -74,12 +72,11 @@ class DataFusionExprStringNamespace(SQLExprStringNamespace["DataFusionExpr"]):
     def to_time(self, format: str | None) -> DataFusionExpr:
         time_dtype = self.compliant._version.dtypes.Time()
         if format is None:
-            # Arrow's cast parses "HH:MM:SS"-style strings directly.
+            # Arrow's cast parses "HH:MM:SS" strings directly
             return self.compliant.cast(time_dtype)
 
-        # `to_timestamp` needs a date part, so parse against the epoch day and
-        # cast the timestamp down to a time. `concat` turns a null into
-        # "1970-01-01 " (a parse error), hence the explicit null branch.
+        # `to_timestamp` needs a date: parse against the epoch day and cast down.
+        # `concat` turns a null into "1970-01-01 " (parse error), hence the null branch
         import pyarrow as pa
 
         def func(expr: Expr) -> Expr:

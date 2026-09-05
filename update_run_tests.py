@@ -1,9 +1,4 @@
-"""Regenerate `TESTS_THAT_NEED_FIX` in run_tests.py from a full narwhals-suite run.
-
-Mirrors narwhals-daft's `update_run_tests.py`. Usage:
-
-    uv run --group tests python update_run_tests.py
-"""
+"""Regenerate `TESTS_THAT_NEED_FIX` in run_tests.py from a full narwhals-suite run."""
 
 from __future__ import annotations
 
@@ -30,7 +25,7 @@ def update_run_tests() -> None:
             "--tb",
             "no",
             "-v",
-            # PY_COLORS=1 in CI would put ANSI codes between FAILED and the path
+            # CI sets PY_COLORS=1; ANSI codes would break the FAILED regex
             "--color=no",
         ],
         check=False,
@@ -49,9 +44,7 @@ def update_run_tests() -> None:
     run_tests_path = Path(__file__).parent / "run_tests.py"
     content = run_tests_path.read_text(encoding="utf-8")
 
-    # Names in ALWAYS_DESELECTED are handled there (CI-only or order-dependent
-    # failures); keep them out of the regenerated list so a run in CI does not
-    # churn it.
+    # ALWAYS_DESELECTED names stay out of the regenerated list so CI runs do not churn it
     always = re.search(r"ALWAYS_DESELECTED(?:: list\[str\])?\s*=\s*\[(.*?)\]", content, re.DOTALL)
     permanent = set(re.findall(r'"(\w+)"', always.group(1))) if always else set()
     recorded = sorted(set(failed_tests) - permanent)

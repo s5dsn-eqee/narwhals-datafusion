@@ -62,9 +62,8 @@ BACKEND_VERSION: tuple[int, ...] = _parse_version(datafusion.__version__)
 
 
 def col(name: str) -> Expr:
-    # `datafusion.col` parses its argument as a SQL identifier: unquoted names
-    # are lower-cased and keywords are rejected. Quote (and escape) so that any
-    # column name round-trips verbatim.
+    # `datafusion.col` parses a SQL identifier (lower-cases, rejects keywords):
+    # quote and escape so any name round-trips
     escaped = name.replace('"', '""')
     return datafusion.col(f'"{escaped}"')
 
@@ -82,8 +81,7 @@ def session_context() -> SessionContext:
 
 
 def native_to_narwhals_dtype(dtype: pa.DataType, version: Version) -> DType:
-    # DataFusion schemas are pyarrow schemas, so the Arrow backend's mapping
-    # applies as-is.
+    # DataFusion schemas are Arrow schemas: reuse the Arrow backend's mapping
     return _arrow_native_to_narwhals_dtype(dtype, version)
 
 
@@ -105,14 +103,13 @@ def _count(*args: Any) -> Expr:
 
 
 def _divide(numerator: Any, denominator: Any) -> Expr:
-    # Arrow integer division truncates; narwhals `divide` must be true division.
+    # integer `/` truncates; narwhals `divide` is true division
     return _ensure_expr(numerator).cast(pa.float64()) / _ensure_expr(denominator)
 
 
 def _floordiv(left: Any, right: Any) -> Expr:
     left, right = _ensure_expr(left), _ensure_expr(right)
-    # Flooring division for any sign combination, staying in the input type:
-    # subtract the positive remainder before dividing.
+    # floor for any sign, staying in the input type: subtract the positive remainder first
     return (left - ((left % right) + right) % right) / right
 
 
@@ -195,8 +192,7 @@ def window_expression(
         for by, desc, nl in zip(order_by, descending, nulls_last, strict=True)
     ] or None
 
-    # narwhals expresses frame bounds as offsets relative to the current row
-    # (negative = preceding); DataFusion takes non-negative magnitudes.
+    # narwhals bounds are offsets (negative = preceding); DataFusion takes magnitudes
     if frame_full:
         frame = WindowFrame("rows", None, None)
     elif rows_start is not None and rows_end is not None:

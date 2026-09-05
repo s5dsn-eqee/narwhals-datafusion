@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 
 
 class DataFusionNamespace(
-    # same `columns`-less native frame caveat as in dataframe.py
+    # same `columns`-less native frame caveat as dataframe.py
     SQLNamespace[DataFusionLazyFrame, DataFusionExpr, "datafusion.DataFrame", "Expr"],  # pyright: ignore[reportInvalidTypeArguments]
     AlignDiagonal[DataFusionLazyFrame, DataFusionExpr],
 ):
@@ -71,9 +71,8 @@ class DataFusionNamespace(
     def _lazyframe(self) -> type[DataFusionLazyFrame]:
         return DataFusionLazyFrame
 
-    # NOTE: `nw.scan_csv`/`nw.scan_parquet` cannot reach these yet: narwhals'
-    # `Implementation.from_backend` has no plugin path and asserts on UNKNOWN
-    # (narwhals 2.25). Kept so the namespace is complete for when it does.
+    # unreachable via `nw.scan_*` until narwhals' `Implementation.from_backend`
+    # gets a plugin path (2.25 asserts on UNKNOWN); kept for completeness
     def scan_csv(
         self, source: NormalizedPath, *, separator: str = ",", **kwds: Any
     ) -> DataFusionLazyFrame:
@@ -110,7 +109,7 @@ class DataFusionNamespace(
             if not all(item.schema == schema for item in items[1:]):
                 msg = "inputs should all have the same schema"
                 raise TypeError(msg)
-            # `union` is positional: align column order across frames.
+            # `union` is positional: align column order
             columns = first.columns
             items = [item.simple_select(*columns) for item in items]
         native = reduce(lambda left, right: left.union(right), (item.native for item in items))
@@ -138,8 +137,7 @@ class DataFusionNamespace(
             cols = tuple(cols)
             total = reduce(operator.add, (F.coalesce(col, lit(0)) for col in cols))
             count = reduce(operator.add, (col.is_not_null().cast(pa.int64()) for col in cols))
-            # An all-null row divides 0.0/0, which DataFusion evaluates to NaN;
-            # narwhals wants null.
+            # all-null row: 0.0/0 is NaN here, narwhals wants null
             return when(count == lit(0), lit(None), total.cast(pa.float64()) / count)
 
         return self._expr._from_elementwise_horizontal_op(func, *exprs)
@@ -194,9 +192,8 @@ class DataFusionNamespace(
 
     def cov(self, a: DataFusionExpr, b: DataFusionExpr, *, ddof: int) -> DataFusionExpr:
         def _cov(a_: Expr, b_: Expr, wrap: Callable[[Expr], Expr]) -> Expr:
-            # `wrap` windows each aggregate individually in a window context:
-            # datafusion only accepts aggregate/window functions in `over`, so
-            # the compound expression can't be wrapped as a whole.
+            # `over` accepts only aggregate/window functions: `wrap` windows each
+            # aggregate, the arithmetic happens outside
             if ddof == 0:
                 return wrap(F.covar_pop(a_, b_))
             if ddof == 1:

@@ -49,9 +49,8 @@ if TYPE_CHECKING:
     from narwhals_datafusion.namespace import DataFusionNamespace
 
 
-# `datafusion.DataFrame` has no `columns` property, so it does not structurally
-# satisfy narwhals' `NativeLazyFrame` protocol that bounds these type
-# variables. Runtime dispatch goes through `is_native`, so this is type-only.
+# `datafusion.DataFrame` has no `columns`, so it fails narwhals' `NativeLazyFrame`
+# bound; dispatch goes through `is_native`, so the mismatch is type-only.
 class DataFusionLazyFrame(
     SQLLazyFrame["DataFusionExpr", "datafusion.DataFrame", "LazyFrame[datafusion.DataFrame]"]  # pyright: ignore[reportInvalidTypeArguments]
 ):
@@ -261,9 +260,8 @@ class DataFusionLazyFrame(
         tmp_name = generate_temporary_column_name(8, self.columns, prefix="row_index_")
         flags = extend_bool(True, len(order_by)) if order_by and keep == "last" else None
         if keep == "none":
-            # The group-size count must ignore `order_by`: with ORDER BY the
-            # window defaults to a cumulative frame, turning this into a
-            # running count that keeps the first row of every duplicated group.
+            # no `order_by`: with ORDER BY the frame is cumulative and this
+            # becomes a running count
             expr = window_expression(F.count_star(), subset_)
         else:
             expr = window_expression(
@@ -301,11 +299,11 @@ class DataFusionLazyFrame(
                 right_on=list(right_on),
                 how=how,
             )
-            # semi/anti joins keep left columns only.
+            # semi/anti joins keep left columns only
             return self._with_native(joined.select(*(col(c) for c in left_columns)))
 
-        # Rename every right-hand column to a collision-free temporary name so
-        # references stay unambiguous, then re-select with narwhals' suffix rules.
+        # shared column names make the joined schema ambiguous: rename every
+        # right-hand column to a temporary name, re-select with narwhals' suffix rules
         tmp_names = {
             name: generate_temporary_column_name(
                 8, [*left_columns, *right_columns], prefix=f"join_{i}_"
@@ -368,9 +366,8 @@ class DataFusionLazyFrame(
         original_columns = self.columns
         inner_type = self._native_schema.field(name).type.value_type
 
-        # datafusion's `unnest_columns` drops rows with empty lists and keeps
-        # nulls only via `preserve_nulls`; to match polars, route both empty
-        # and null lists through a literal-null branch and union positionally.
+        # `unnest_columns` drops empty lists and keeps nulls only via
+        # `preserve_nulls`: route both through a literal-null branch and union
         not_null_condition = col(name).is_not_null() & (F.array_length(col(name)) > lit(0))
         non_null_rel = (
             self.native.filter(not_null_condition)
@@ -395,8 +392,7 @@ class DataFusionLazyFrame(
         index_ = [] if index is None else list(index)
         on_ = [c for c in self.columns if c not in index_] if on is None else list(on)
         if not on_:
-            # Nothing to melt: keep the index columns and an empty
-            # variable/value pair, as polars does.
+            # nothing to melt: index columns plus an empty variable/value pair
             empty = self.native.select(
                 *(col(c) for c in index_),
                 lit(None).cast(pa.string()).alias(variable_name),
@@ -404,8 +400,7 @@ class DataFusionLazyFrame(
             )
             return self._with_native(empty.filter(lit(False)))
 
-        # `union` requires matching schemas, so promote mixed numeric value
-        # columns to a common type up front.
+        # `union` needs matching schemas: promote mixed numeric value columns first
         schema = self._native_schema
         value_types = {schema.field(name).type for name in on_}
         target: pa.DataType | None = None
@@ -419,7 +414,7 @@ class DataFusionLazyFrame(
             expr = col(name)
             return expr.cast(target) if target is not None else expr
 
-        # No native unpivot: build one projection per value column and union.
+        # no native unpivot: one projection per value column, unioned
         frames = [
             self.native.select(
                 *(col(c) for c in index_),
@@ -440,8 +435,7 @@ class DataFusionLazyFrame(
 
     def sink_parquet(self, file: str | Path | BytesIO) -> None:
         if not isinstance(file, (str, Path)):
-            # `write_parquet` takes a path; `str(buffer)` would silently write
-            # to a file named after the object's repr.
+            # `write_parquet` takes a path; `str(buffer)` would write a file named after the repr
             msg = (
                 "`sink_parquet` to a file-like object is not supported for the "
                 "DataFusion backend; pass a file path instead."

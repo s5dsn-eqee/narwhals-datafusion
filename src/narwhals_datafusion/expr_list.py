@@ -44,7 +44,7 @@ class DataFusionExprListNamespace(
             lambda expr: F.array_sort(expr, descending=descending, null_first=not nulls_last)
         )
 
-    # No `array_sum`/`array_mean`/`array_median` in datafusion (as of 54).
+    # no `array_sum`/`array_mean`/`array_median` in 54
     mean = not_implemented()
     median = not_implemented()
     sum = not_implemented()

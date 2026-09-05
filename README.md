@@ -6,8 +6,13 @@
 [![Downloads](https://static.pepy.tech/badge/narwhals-datafusion/month)](https://pepy.tech/project/narwhals-datafusion)
 
 [Apache DataFusion](https://datafusion.apache.org/python/) backend for
-[Narwhals](https://github.com/narwhals-dev/narwhals), implemented as an
-out-of-tree plugin via the `narwhals.plugins` entry-point system.
+[Narwhals](https://github.com/narwhals-dev/narwhals), registered through the
+`narwhals.plugins` entry point.
+
+```sh
+pip install narwhals-datafusion                    # core
+pip install "narwhals-datafusion[extra-functions]" # + mode, skew, kurtosis
+```
 
 ## Usage
 
@@ -19,7 +24,7 @@ from datafusion import SessionContext
 ctx = SessionContext()
 df = ctx.from_arrow(pa.table({"a": [1, 2, 3], "b": ["x", "y", "x"]}))
 
-lf = nw.from_native(df)  # -> nw.LazyFrame, dispatched to this plugin
+lf = nw.from_native(df)  # nw.LazyFrame on this backend
 result = (
     lf.group_by("b")
     .agg(nw.col("a").sum())
@@ -28,52 +33,40 @@ result = (
 )
 ```
 
-Everything stays lazy until `.collect()`: narwhals expressions are translated to
-`datafusion.Expr`, frame verbs to `datafusion.DataFrame` methods, and the plan
-executes in DataFusion's Rust engine. Dtypes are pyarrow end-to-end.
+Everything is lazy until `.collect()`: expressions become `datafusion.Expr`,
+frame verbs become `datafusion.DataFrame` methods, and DataFusion executes the
+plan. Dtypes are pyarrow end-to-end.
 
 ## Architecture
 
-The backend sits on narwhals' shared SQL layer (`narwhals._sql`), the same
-abstraction DuckDB, Ibis, and Spark use. It subclasses narwhals' private
-internals (`narwhals._sql`, `narwhals._compliant`), so it is tested against one
-exact release, vendored as the `narwhals/` git submodule (currently 2.25), and
-the dependency pins are floors only. The plugin provides:
+A subclass of narwhals' SQL layer (`narwhals._sql`, `narwhals._compliant`),
+the layer DuckDB, Ibis and Spark also use. Tested against the narwhals release
+vendored as the `narwhals/` submodule (2.25) and datafusion 54, the major
+`pyproject.toml` pins.
 
 | Module | Class |
 |---|---|
-| `dataframe.py` | `DataFusionLazyFrame` — frame verbs over `datafusion.DataFrame` |
-| `expr.py` | `DataFusionExpr` — the six `SQLExpr` hooks + backend specifics |
-| `namespace.py` | `DataFusionNamespace` — the four `SQLNamespace` primitives, IO, horizontal fns |
+| `dataframe.py` | `DataFusionLazyFrame`: frame verbs over `datafusion.DataFrame` |
+| `expr.py` | `DataFusionExpr`: the `SQLExpr` hooks, aggregates, windows, casts |
+| `namespace.py` | `DataFusionNamespace`: `SQLNamespace` primitives, IO, horizontal functions |
 | `group_by.py`, `selectors.py`, `expr_str/dt/list/struct.py` | supporting surface |
-| `utils.py` | function-name remapping, window/sort builders, dtype bridge (delegates to `narwhals._arrow`) |
+| `utils.py` | function-name remapping, window/sort builders, dtype bridge via `narwhals._arrow` |
 
-## `mode`, `skew`, `kurtosis` via `datafusion-extra-functions`
+## `mode`, `skew`, `kurtosis`
 
-DataFusion core deliberately keeps its function library lean, so aggregates
-like `mode`/`skewness`/`kurtosis` live in the contrib
+These aggregates live in the Rust-only
 [`datafusion-extra-functions`](https://github.com/datafusion-contrib/datafusion-extra-functions)
-crate (Rust-only, no wheel on PyPI). The
-[`datafusion-extra-functions-ffi`](https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi)
-package — a prebuilt wheel, installed through the `extra-functions` extra —
-exposes its aggregate UDFs to datafusion-python via the
-`__datafusion_aggregate_udf__` PyCapsule protocol; they back `Expr.mode`,
-`Expr.skew`, and `Expr.kurtosis`:
-
-```sh
-pip install "narwhals-datafusion[extra-functions]"
-```
-
-Without the extra those three methods raise `NotImplementedError` and
-everything else works. The shim's FFI ABI is tied to the `datafusion` major it
-was compiled against (currently 54), which the wheel's own dependency pin
-enforces.
+crate. The `extra-functions` extra installs
+[`datafusion-extra-functions-ffi`](https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi),
+a prebuilt wheel exposing them through datafusion-python's
+`__datafusion_aggregate_udf__` capsule protocol. Without it the three methods
+raise `NotImplementedError`. The wheel pins the datafusion major it was built
+for.
 
 ## API coverage
 
-Status of the narwhals public API on this backend (`narwhals==2.25`,
-`datafusion==54`). ⚠️ entries work with the caveat in parentheses; details in
-[Known limitations](#known-limitations-as-of-datafusion-54).
+narwhals 2.25 on datafusion 54. ⚠️ entries work with the caveat in
+parentheses; see [Known limitations](#known-limitations-as-of-datafusion-54).
 
 | Namespace | ✅ Supported | ⚠️ Partial | ❌ Not supported |
 |---|---|---|---|
@@ -84,61 +77,39 @@ Status of the narwhals public API on this backend (`narwhals==2.25`,
 | `Expr.struct` | `field` | | |
 | `LazyFrame` | `collect` `collect_schema` `drop` `drop_nulls` `filter` `group_by` `head` `join` `rename` `select` `sort` `top_k` `unique` `unpivot` `with_columns` `with_row_index` | `explode` (single column) · `sink_parquet` (file path only) | `join_asof` |
 
-Not listed: methods narwhals itself doesn't support on *any* lazy/SQL backend
+Not listed: methods narwhals does not support on any lazy backend
 (`Expr.filter`, `Expr.drop_nulls`, `Expr.unique`, `Expr.map_batches`,
 `Expr.ewm_mean`, `LazyFrame.tail`, `LazyFrame.gather_every`).
 
 ## Known limitations (as of datafusion 54)
 
-- `join_asof`, exact `quantile`,
-  `cum_prod`, `list.sum/mean/median`, `dt.total_*`, `dt.offset_by`,
-  `dt.timestamp`, `str.replace`, `Enum` casts — no engine support;
-  raise `NotImplementedError`.
-- `mode`, `skew`, `kurtosis` need the `extra-functions` extra (see above);
-  without it they raise `NotImplementedError` naming it.
-- `n_unique().over(...)` raises: DataFusion silently ignores `DISTINCT` inside
-  window aggregates, which would return wrong results. (The same engine quirk
-  drops `ORDER BY`/`IGNORE NULLS` declared inside window aggregates — this
-  backend moves those modifiers onto the window itself.)
-- `fill_null(strategy=..., limit=n)` raises: bounded window frames with
-  `first_value`/`last_value` need `retract_batch`, unimplemented engine-side.
-- `replace_time_zone` supports `None` (strip) and `"UTC"` only; use
-  `convert_time_zone` for instant-preserving conversions.
+- `join_asof`, exact `quantile`, `cum_prod`, `list.sum/mean/median`,
+  `dt.total_*`, `dt.offset_by`, `dt.timestamp`, `str.replace`, `Enum` casts:
+  no engine support, raise `NotImplementedError`.
+- `mode`, `skew`, `kurtosis`: need the `extra-functions` extra.
+- `n_unique().over(...)` raises: DataFusion ignores `DISTINCT` inside window
+  aggregates, which would return wrong results. It also drops `ORDER BY` and
+  `IGNORE NULLS` there; this backend moves those onto the window itself.
+- `fill_null(strategy=..., limit=n)` raises: bounded frames with
+  `first_value`/`last_value` need `retract_batch`, not implemented engine-side.
+- `replace_time_zone` supports `None` and `"UTC"` only; use `convert_time_zone`
+  for instant-preserving conversions.
 - `str.to_datetime`/`to_date` require an explicit `format`.
 - `replace_strict` requires an explicit `default`.
 - `nw.scan_csv`/`nw.scan_parquet` cannot dispatch to a plugin backend yet
-  (narwhals gap); read with a DataFusion `SessionContext` and pass the frame
-  to `nw.from_native`.
-- `str.to_titlecase` uses `initcap`, which doesn't break words on digits.
-- No row-order guarantees except after `sort` (standard for SQL engines):
-  `concat` may interleave its inputs and backward `fill_null` may reorder
-  rows. Sort explicitly when order matters.
+  (narwhals gap); read with a `SessionContext` and pass the frame to
+  `nw.from_native`.
+- `str.to_titlecase` uses `initcap`, which does not break words on digits.
+- Row order is guaranteed only after `sort`: `concat` may interleave inputs and
+  backward `fill_null` may reorder rows.
 
 ## Development
 
 ```sh
-git submodule update --init      # narwhals, pinned to the targeted release
+git submodule update --init                       # narwhals at the tested tag
 uv sync --group tests --extra extra-functions
+uv run --group tests pytest tests                 # this package's tests
+uv run --group tests python run_tests.py          # narwhals' suite, known failures deselected
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
-
-## Running narwhals' own test suite against this backend
-
-The narwhals repo is vendored as a git submodule pinned to the targeted
-release:
-
-```sh
-git submodule update --init
-uv run --group tests python run_tests.py    # known failures deselected
-```
-
-For the full, unfiltered run:
-
-```sh
-uv run --group tests pytest narwhals/tests -c narwhals/pyproject.toml \
-    -p narwhals_datafusion.testing -p env --use-external-constructor
-```
-
-Regenerate the deselect list after fixing tests or bumping the submodule with
-`uv run --group tests python update_run_tests.py`.
+See [CONTRIBUTING.md](CONTRIBUTING.md).

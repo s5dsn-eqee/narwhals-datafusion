@@ -1,85 +1,63 @@
-# Agent Instructions for Contributors
+# Agent Instructions
 
-This file is for agents working **on** narwhals-datafusion (developing,
-testing, reviewing, releasing). To **use** the package, read the
-[README](README.md): it has the usage snippet, the API coverage matrix and the
-known limitations. The human-facing workflow is in
-[CONTRIBUTING.md](CONTRIBUTING.md); this file adds what an agent needs on top.
+For agents working on narwhals-datafusion. Usage and API coverage are in the
+[README](README.md); the human workflow is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## What this project is
+## What this is
 
 A [narwhals](https://github.com/narwhals-dev/narwhals) backend plugin for
-[Apache DataFusion](https://github.com/apache/datafusion-python), registered
-through the `narwhals.plugins` entry point. It is a thin subclass of narwhals'
-private SQL layer (`narwhals._sql`, `narwhals._compliant`), the same shape as
-the built-in DuckDB backend and the `narwhals-daft` plugin. Every file in
-`src/narwhals_datafusion/` overrides only what DataFusion does differently.
-
-Because it targets private narwhals internals, the exact narwhals release it
-was last tested against is vendored as the `narwhals/` git submodule.
-`pyproject.toml` has floors only (`narwhals>=2.25`, `datafusion>=54`), so a
-newer release can break the plugin at runtime; the weekly workflow runs both
-suites on the newest narwhals tag and the newest datafusion to catch that.
-Develop and test against the submodule, never against a site-packages
-narwhals.
+[Apache DataFusion](https://github.com/apache/datafusion-python): a thin
+subclass of narwhals' private SQL layer (`narwhals._sql`, `narwhals._compliant`)
+that overrides only what DataFusion does differently. The release last tested
+against is the `narwhals/` submodule; develop and test against it, never
+against a site-packages narwhals.
 
 ## Skills
 
-Task-specific instructions live in `.ai/skills/`, one directory per skill with
-a `SKILL.md` (YAML frontmatter: `name`, `description`, `argument-hint`, then
-the instructions). `.claude/skills` is a symlink to that directory so Claude
-Code discovers them; other agents should list `.ai/skills/` and read each
-`SKILL.md`. On a Windows checkout without `core.symlinks` the symlink is a
-plain text file holding the path; read `.ai/skills/` directly.
+`.ai/skills/<name>/SKILL.md`, YAML frontmatter (`name`, `description`,
+`argument-hint`) then instructions. `.claude/skills` is a symlink to that
+directory; on a Windows checkout without `core.symlinks` it is a text file,
+read `.ai/skills/` directly. A description starting with `TRIGGER —` is a
+convention to read before writing the code it names.
 
-Descriptions beginning with `TRIGGER —` are conventions to read *before*
-writing code that meets the stated condition, not tasks to run on request.
-
-| Skill | Use it when |
+| Skill | When |
 |---|---|
-| [`datafusion-workarounds`](.ai/skills/datafusion-workarounds/SKILL.md) | TRIGGER: before touching any expression, window, join, or dtype code |
+| [`datafusion-workarounds`](.ai/skills/datafusion-workarounds/SKILL.md) | TRIGGER: before touching expression, window, join, cast or dtype code |
 | [`sync-narwhals`](.ai/skills/sync-narwhals/SKILL.md) | bumping the narwhals submodule or regenerating the skip list |
-| [`check-coverage`](.ai/skills/check-coverage/SKILL.md) | auditing which narwhals APIs this backend supports and keeping the README matrix honest |
-| [`release`](.ai/skills/release/SKILL.md) | cutting a version, or reacting to a new datafusion major or a new FFI shim |
+| [`check-coverage`](.ai/skills/check-coverage/SKILL.md) | auditing API support against the README matrix |
+| [`release`](.ai/skills/release/SKILL.md) | cutting a version, moving a pin, a new datafusion major or shim |
 
-## Setup and checks
+## Checks
 
 ```sh
-git submodule update --init          # narwhals at the pinned tag
-uv sync --group tests --extra extra-functions   # the extra: mode/skew/kurtosis shim
-uvx pre-commit run --all-files       # ruff format + check, codespell, typos; CI runs exactly this
-uv run --group typing pyright        # package, tests, and test_plugin_protocol.py
-uv run --group tests pytest tests    # this package's own suite (fast)
-uv run --group tests python run_tests.py   # narwhals' suite, known failures deselected
+git submodule update --init
+uv sync --group tests --extra extra-functions
+uvx pre-commit run --all-files
+uv run --group typing pyright
+uv run --group tests pytest tests
+uv run --group tests python run_tests.py
 ```
 
-All four checks must pass before a commit. `test_plugin_protocol.py` is a
-static check that the package satisfies narwhals' `Plugin` protocol, not a
-pytest test; pyright is what runs it. The full unfiltered narwhals run
-and how to interpret it are described in the `sync-narwhals` skill.
+All four checks pass before a commit.
 
 ## Conventions
 
-- **Unsupported operations** are declared, not discovered at runtime. A
-  method DataFusion cannot express at all is `not_implemented()` at class
-  level. A method that works only for some arguments raises
-  `NotImplementedError` with a message naming the backend and the argument.
-  Never return a wrong result silently; the `n_unique` window path is the
-  model for refusing.
-- **Every DataFusion workaround carries a comment** saying which engine
-  behaviour it works around. The `datafusion-workarounds` skill is the index
-  of those; add to it when you add a new one.
-- **The README coverage matrix is part of the change.** Moving a method
-  between the supported, partial and unsupported columns, or changing a
-  caveat, happens in the same commit as the code.
-- **Floors, not ceilings.** `narwhals>=2.25` and `datafusion>=54` are the
-  oldest releases the code works on; do not add an upper bound when a new
-  release breaks something, fix the code and cut a patch. The submodule tag
-  and `uv.lock` record what was tested. The `extra-functions` shim carries
-  its own datafusion pin per shim minor, so it is optional here and unbounded;
-  see the `release` skill before touching any of the three.
-- **Commit messages are one line**, roughly ten words, imperative, no body
-  and no trailers.
+- **Unsupported operations are declared.** A method DataFusion cannot express
+  is `not_implemented()` at class level; one that works for some arguments
+  raises `NotImplementedError` naming the backend and the argument. Never
+  return a wrong result silently (`n_unique` over a window is the model).
+- **Every workaround carries a one-line comment** naming the engine behaviour,
+  and an entry in the `datafusion-workarounds` skill.
+- **The README matrix changes in the same commit** as the code that moves a
+  method or a caveat.
+- **Pins.** `narwhals>=2.25`: floor only; a break is a code fix and a patch
+  release. `datafusion>=54,<55`: capped at the tested major; moves after both
+  suites pass on the next one. The shim pins its own datafusion major.
+- **Prose is minimal.** A comment, doc line or skill sentence exists only if a
+  reader needs it to act; one reason per rule, no justification paragraphs, no
+  comparisons to other projects, no judgement of upstream.
+- **Commit messages**: one line, about ten words, imperative, no body, no
+  trailers.
 
 ## Layout
 
@@ -92,9 +70,9 @@ src/narwhals_datafusion/
   expr_{str,dt,list,struct}.py   sub-namespaces
   utils.py          col() quoting, FUNCTION_REMAP, window_expression, errors
   extra_functions.py  mode/skew/kurtosis via the FFI shim (optional extra)
-  testing.py        pytest plugin that feeds narwhals' suite a DataFusion frame
-tests/              this package's own smoke and regression tests
-run_tests.py        curated narwhals-suite runner (TESTS_THAT_NEED_FIX)
-update_run_tests.py regenerates TESTS_THAT_NEED_FIX from a full run
-narwhals/           git submodule, pinned narwhals release
+  testing.py        pytest plugin feeding narwhals' suite a DataFusion frame
+tests/              this package's tests
+run_tests.py        narwhals-suite runner with TESTS_THAT_NEED_FIX
+update_run_tests.py regenerates TESTS_THAT_NEED_FIX
+narwhals/           submodule, tested narwhals release
 ```

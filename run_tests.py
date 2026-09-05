@@ -1,12 +1,7 @@
-"""Run narwhals' own test suite (from the `narwhals/` submodule) against this backend.
+"""Run narwhals' own test suite (the `narwhals/` submodule) against this backend.
 
-Mirrors narwhals-daft's `run_tests.py`: known-failing tests are deselected via
-`TESTS_THAT_NEED_FIX` so the run is green; regenerate that list with
-`python update_run_tests.py` after fixing things or bumping the submodule.
-
-Usage:
-    git submodule update --init
-    uv run --group tests python run_tests.py       # extra pytest args pass through
+Known failures are deselected via `TESTS_THAT_NEED_FIX`; regenerate it with
+`update_run_tests.py`. Extra arguments pass through to pytest.
 """
 
 from __future__ import annotations
@@ -80,23 +75,19 @@ TESTS_THAT_NEED_FIX: list[str] = [
     "test_with_row_index",
 ]
 
-# Always deselected, independent of `update_run_tests.py`, because they pass
-# locally and fail only in CI, so the regenerator would keep dropping them.
+# pass locally, fail only in CI; `update_run_tests.py` leaves this list alone
 ALWAYS_DESELECTED: list[str] = [
-    # assert row order after `concat` without sorting; DataFusion's union
-    # output order is not deterministic under multi-partition execution
+    # assert row order after `concat` without sorting; union output order is
+    # nondeterministic across partitions
     "test_concat_diagonal",
     "test_concat_vertical",
-    # greps the *current directory's* pyproject.toml for narwhals' version and
-    # asserts only under GitHub Actions; ours has no static version line
+    # greps the current directory's pyproject.toml for a static narwhals version
     "test_package_version",
 ]
 
 DESELECTED = [*TESTS_THAT_NEED_FIX, *ALWAYS_DESELECTED]
 
-# Extra arguments pass through to pytest. Paths among them replace the default
-# target, so `run_tests.py narwhals/tests/frame` narrows the run instead of
-# being unioned with the whole suite.
+# extra arguments pass through to pytest; paths replace the default target
 extra = sys.argv[1:]
 targets = [arg for arg in extra if Path(arg).exists()] or ["narwhals/tests"]
 options = [arg for arg in extra if not Path(arg).exists()]
@@ -104,7 +95,7 @@ options = [arg for arg in extra if not Path(arg).exists()]
 command = [
     "pytest",
     *targets,
-    # use narwhals' own pytest config (env vars like TZ=UTC, warning filters)
+    # narwhals' own pytest config (TZ=UTC, warning filters)
     "-c",
     "narwhals/pyproject.toml",
     "-p",
@@ -113,9 +104,7 @@ command = [
     "env",
     "--use-external-constructor",
 ]
-# pytest keeps only the last `-k`, so a caller's expression is combined with
-# the skip list (`and`) instead of replacing it; the weekly latest-datafusion
-# job relies on this
+# pytest keeps only the last `-k`: combine a caller's with the skip list
 keyword = None
 if "-k" in options:
     at = options.index("-k")

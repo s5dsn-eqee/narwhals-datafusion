@@ -9,7 +9,6 @@ from datafusion import SessionContext
 import narwhals as nw
 from narwhals_datafusion import extra_functions
 
-# the shim is the `extra-functions` optional extra; CI runs both with and without it
 needs_ffi = pytest.mark.skipif(
     importlib.util.find_spec("datafusion_extra_functions_ffi") is None,
     reason="needs the `extra-functions` extra",
@@ -30,8 +29,7 @@ def to_dict(frame: nw.LazyFrame) -> dict:
     ids=["mode", "skew", "kurtosis"],
 )
 def test_without_extra_points_at_it(monkeypatch: pytest.MonkeyPatch, expr: nw.Expr) -> None:
-    # simulate a base install: the lookup finds no UDAF
-    monkeypatch.setattr(extra_functions, "extra_udaf", lambda name: None)
+    monkeypatch.setattr(extra_functions, "extra_udaf", lambda name: None)  # bare install
     with pytest.raises(NotImplementedError, match=r"narwhals-datafusion\[extra-functions\]"):
         lf({"a": [1.0, 2.0, 4.0]}).select(expr)
 

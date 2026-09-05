@@ -11,14 +11,11 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
-  # Floors only, daft-style. This backend subclasses private `narwhals._sql`
-  # internals, and datafusion-python majors change the Python API, so newer
-  # releases can break it at runtime; the tested versions are the `narwhals/`
-  # submodule tag and `uv.lock`, and the weekly workflow runs both suites on
-  # the newest narwhals tag and the newest datafusion (see the release skill).
+  # floor only; the tested release is the `narwhals/` submodule tag
   "narwhals>=2.25",
-  # floor: arithmetic over two aggregates inside `aggregate()` needs 54
-  "datafusion>=54",
+  # capped at the tested major; moves after both suites pass on the next one
+  # (release skill). 54: aggregate arithmetic inside `aggregate()`
+  "datafusion>=54,<55",
   "pyarrow>=14.0.0",
 ]
 classifiers = [
@@ -31,11 +28,9 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# `mode`/`skew`/`kurtosis` need this FFI shim (prebuilt wheels from
-# https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi). Without it
-# those three raise NotImplementedError; everything else works. The shim's own
-# dependency pin ties each shim minor to the datafusion major it was compiled
-# against, so the resolver pairs them and no ceiling is needed here.
+# `mode`/`skew`/`kurtosis`; prebuilt wheels from
+# https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi. Without it they
+# raise NotImplementedError. Each shim minor pins its own datafusion major.
 extra-functions = ["datafusion-extra-functions-ffi>=0.1"]
 
 [project.urls]
@@ -60,31 +55,26 @@ exclude = [
 ]
 
 [dependency-groups]
-# Deps for running narwhals' own suite from the `narwhals/` submodule
-# (daft-style): `uv run --group tests python run_tests.py`.
+# both test suites: `pytest tests` and `python run_tests.py`
 tests = [
   "pytest>=9.0.3",
   "pytest-env",
   "pytest-randomly",
   "pytest-xdist",
   "hypothesis>=6.0.0",
-  # eager targets for `collect(backend=...)`; also un-skips narwhals tests
-  # that import them
+  # `collect(backend=...)` targets; also un-skip narwhals tests that import them
   "pandas",
   "polars",
 ]
 typing = ["pyright"]
 
 [tool.uv.sources]
-# narwhals comes editable from the pinned submodule (run
-# `git submodule update --init` after cloning), so the plugin is always
-# developed and tested against the exact internals it targets.
+# editable from the submodule (`git submodule update --init` first)
 narwhals = { path = "narwhals", editable = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
-# daft-style: `uv run --group typing pyright` (CI runs it on 3.12)
 [tool.pyright]
 pythonPlatform = "All"
 typeCheckingMode = "basic"
@@ -94,13 +84,11 @@ reportMissingModuleSource = "none"
 reportPrivateImportUsage = "none"
 reportPrivateUsage = "none"
 reportUnusedExpression = "none"
-# `tests` is left out: every `nw.from_native(datafusion.DataFrame)` fails the
-# `IntoLazyFrame` bound because datafusion's DataFrame has no `columns`
-# property (see the ignores in dataframe.py).
+# no `tests`: `nw.from_native(datafusion.DataFrame)` fails the `IntoLazyFrame`
+# bound (no `columns` property; see dataframe.py)
 include = ["src", "test_plugin_protocol.py"]
 exclude = ["narwhals", ".venv"]
 
-# Standalone lint config (decoupled from the narwhals repo's root settings).
 [tool.ruff]
 line-length = 100
 target-version = "py310"

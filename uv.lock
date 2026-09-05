@@ -419,7 +419,7 @@ typing = [
 
 [package.metadata]
 requires-dist = [
-    { name = "datafusion", specifier = ">=54" },
+    { name = "datafusion", specifier = ">=54,<55" },
     { name = "datafusion-extra-functions-ffi", marker = "extra == 'extra-functions'", specifier = ">=0.1" },
     { name = "narwhals", editable = "narwhals" },
     { name = "pyarrow", specifier = ">=14.0.0" },

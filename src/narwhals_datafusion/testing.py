@@ -1,8 +1,6 @@
-"""Pytest plugin to run narwhals' own test suite against the DataFusion backend.
+"""Pytest plugin feeding narwhals' own suite a DataFusion frame.
 
-From a narwhals checkout, with `narwhals-datafusion` installed:
-
-    pytest tests/ --use-external-constructor -p narwhals_datafusion.testing
+pytest narwhals/tests --use-external-constructor -p narwhals_datafusion.testing
 """
 
 from __future__ import annotations
@@ -31,7 +29,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     if "constructor" in metafunc.fixturenames:
         metafunc.parametrize("constructor", [datafusion_lazy_constructor], ids=["datafusion"])
     if "constructor_eager" in metafunc.fixturenames:
-        # DataFusion is lazy-only: eager-constructor tests are skipped.
+        # lazy-only backend: no eager constructor
         metafunc.parametrize("constructor_eager", [], ids=[])
     if "constructor_pandas_like" in metafunc.fixturenames:
         metafunc.parametrize("constructor_pandas_like", [], ids=[])

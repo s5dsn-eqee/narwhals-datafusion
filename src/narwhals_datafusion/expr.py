@@ -109,9 +109,8 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
         return F.first_value(expr, order_by=[sort_expr(by) for by in order_by])
 
     def _last(self, expr: Expr, *order_by: str) -> Expr:
-        # `last_value` with an inner `order_by` is unreliable inside window
-        # contexts (datafusion rewrites last->first internally); the reversed
-        # `first_value` is equivalent and behaves.
+        # `last_value` with an inner `order_by` is rewritten to first internally;
+        # `first_value` over the reversed order is equivalent
         return F.first_value(
             expr,
             order_by=[sort_expr(by, descending=True, nulls_last=True) for by in order_by],
@@ -122,10 +121,9 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
             return F.first_value(expr, null_treatment=NullTreatment.IGNORE_NULLS)
         return F.first_value(expr)
 
-    # NOTE: datafusion silently drops modifiers (ORDER BY, IGNORE NULLS,
-    # DISTINCT) declared *inside* an aggregate when it is used as a window
-    # function. `first`/`last`/`any_value` therefore move those modifiers onto
-    # the window itself in their window paths.
+    # ORDER BY / IGNORE NULLS / DISTINCT declared inside an aggregate are dropped
+    # when it runs as a window function: `first`/`last`/`any_value` put them on
+    # the window instead
     def first(self, order_by: Sequence[str] = ()) -> Self:
         def f(expr: Expr) -> Expr:
             if not order_by:  # pragma: no cover
@@ -155,9 +153,8 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
 
         def window_f(df: DataFusionLazyFrame, inputs: DataFusionWindowInputs) -> Sequence[Expr]:
             self._check_first_last_window_args(inputs.order_by, order_by)
-            # Keep the same (ascending) ordering as `first` and take the whole
-            # partition as the frame: mixing sort directions across windows in
-            # one projection trips a datafusion optimizer assertion.
+            # ascending like `first`, whole partition as frame: mixed sort
+            # directions across windows in one projection trip an optimizer assertion
             return [
                 window_expression(
                     F.last_value(expr),
@@ -240,18 +237,18 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
         return self._with_elementwise(invert)
 
     def __neg__(self) -> Self:
-        # datafusion's Expr has no unary minus.
+        # `Expr` has no unary minus
         return self._with_elementwise(lambda expr: lit(-1) * expr)
 
     def __pow__(self, other: Self) -> Self:
-        # datafusion's Expr has no `**` operator.
+        # `Expr` has no `**`
         return self._with_binary(lambda expr, other: F.pow(expr, other), other)
 
     def __rpow__(self, other: Self) -> Self:
         return self._with_binary(lambda expr, other: F.pow(other, expr), other).alias("literal")
 
     def __truediv__(self, other: Self) -> Self:
-        # Arrow integer division truncates; narwhals `/` is true division.
+        # integer `/` truncates; narwhals `/` is true division
         return self._with_binary(
             lambda expr, other: expr.cast(pa.float64()).__truediv__(other), other
         )
@@ -273,8 +270,7 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
             )
 
         def window_f(df: DataFusionLazyFrame, inputs: DataFusionWindowInputs) -> Sequence[Expr]:
-            # datafusion silently drops DISTINCT inside window aggregates, which
-            # would return the wrong result rather than error.
+            # DISTINCT inside a window aggregate is dropped: wrong result, not an error
             msg = "`n_unique` over a window is not supported for the DataFusion backend."
             raise NotImplementedError(msg)
 
@@ -296,9 +292,8 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
         return self._with_elementwise(func)
 
     def is_in(self, other: Sequence[Any]) -> Self:
-        # narwhals semantics: null input -> null output; a None in `other`
-        # never matches. SQL's three-valued IN would instead return null for
-        # any non-match when the list contains NULL, so drop Nones up front.
+        # SQL IN with a NULL in the list returns null for every non-match;
+        # narwhals wants false, so drop Nones
         values = [lit(value) for value in other if value is not None]
         if values:
             return self._with_elementwise(lambda expr: F.in_list(expr, values, negated=False))
@@ -311,17 +306,15 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
     ) -> Self:
         if strategy is not None:
             if limit is not None:
-                # datafusion can't run first/last_value over a sliding frame
-                # (`retract_batch` is not implemented engine-side).
+                # first/last_value over a bounded frame need `retract_batch`, not implemented
                 msg = "`fill_null` with a `limit` is not supported for the DataFusion backend."
                 raise NotImplementedError(msg)
 
             def _fill_with_strategy(
                 df: DataFusionLazyFrame, inputs: DataFusionWindowInputs
             ) -> Sequence[Expr]:
-                # forward fill == last non-null up to the current row; backward
-                # fill is the same under the reversed ordering. Both stay within
-                # the cumulative frame datafusion supports.
+                # last non-null up to the current row (cumulative frame); backward
+                # fill is the same over the reversed order
                 flags = extend_bool(strategy == "backward", len(inputs.order_by))
                 return [
                     window_expression(
@@ -414,8 +407,7 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
     def struct(self) -> DataFusionExprStructNamespace:
         return DataFusionExprStructNamespace(self)
 
-    # `mode`/`skewness`/`kurtosis` come from the optional
-    # `datafusion-extra-functions-ffi` wheel (datafusion 54 has no built-ins).
+    # no built-in mode/skewness/kurtosis in 54; the `extra-functions` shim provides them
     def _extra_udaf(self, function_name: str, operation: str) -> Any:
         from narwhals_datafusion.extra_functions import INSTALL_HINT, extra_udaf
 
@@ -438,9 +430,8 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
         return self._with_callable(self._extra_udaf("kurtosis_pop", "kurtosis"))
 
     def skew(self) -> Self:
-        # The crate's `skewness` matches duckdb's (bias-adjusted, G1); narwhals
-        # wants the population coefficient (g1), so undo the adjustment and
-        # pin down the small-sample edge cases, mirroring the duckdb backend.
+        # the crate's `skewness` is bias-adjusted (G1); narwhals wants g1: undo
+        # the adjustment and pin n=0/1/2, as the duckdb backend does
         fn = self._extra_udaf("skewness", "skew")
         W = self._window_expression
 
@@ -470,6 +461,6 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
 
         return self._with_callable(func, window_f)
 
-    # No exact quantiles or `product` aggregate in datafusion 54.
+    # no exact quantile or `product` aggregate in 54
     cum_prod = not_implemented()
     quantile = not_implemented()
