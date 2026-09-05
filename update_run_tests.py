@@ -44,9 +44,13 @@ def update_run_tests() -> None:
     run_tests_path = Path(__file__).parent / "run_tests.py"
     content = run_tests_path.read_text(encoding="utf-8")
 
-    # ALWAYS_DESELECTED names stay out of the regenerated list so CI runs do not churn it
-    always = re.search(r"ALWAYS_DESELECTED(?:: list\[str\])?\s*=\s*\[(.*?)\]", content, re.DOTALL)
-    permanent = set(re.findall(r'"(\w+)"', always.group(1))) if always else set()
+    # hand-maintained lists stay out of the regenerated one: ALWAYS_DESELECTED so CI
+    # runs do not churn it, TESTS_NEED_EXTRA so a run without the shim does not record them
+    permanent: set[str] = set()
+    for name in ("ALWAYS_DESELECTED", "TESTS_NEED_EXTRA"):
+        block = re.search(rf"{name}(?:: list\[str\])?\s*=\s*\[(.*?)\]", content, re.DOTALL)
+        if block:
+            permanent |= set(re.findall(r'"(\w+)"', block.group(1)))
     recorded = sorted(set(failed_tests) - permanent)
 
     formatted_tests = ",\n    ".join(f'"{t}"' for t in recorded)
