@@ -29,7 +29,7 @@ def to_dict(frame: nw.LazyFrame) -> dict:
     ids=["mode", "skew", "kurtosis"],
 )
 def test_without_extra_points_at_it(monkeypatch: pytest.MonkeyPatch, expr: nw.Expr) -> None:
-    monkeypatch.setattr(extra_functions, "extra_udaf", lambda name: None)  # bare install
+    monkeypatch.setattr(extra_functions, "extra_udaf", lambda _: None)  # bare install
     with pytest.raises(NotImplementedError, match=r"narwhals-datafusion\[extra-functions\]"):
         lf({"a": [1.0, 2.0, 4.0]}).select(expr)
 

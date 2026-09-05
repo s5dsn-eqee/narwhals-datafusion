@@ -37,12 +37,18 @@ Everything is lazy until `.collect()`: expressions become `datafusion.Expr`,
 frame verbs become `datafusion.DataFrame` methods, and DataFusion executes the
 plan. Dtypes are pyarrow end-to-end.
 
+## Compatibility
+
+- Python 3.10 to 3.13.
+- `datafusion>=54,<55`: capped at the tested major; a release moves the cap.
+- `narwhals>=2.25`: floor only; tested on 2.25, the `narwhals/` submodule.
+- `datafusion-extra-functions-ffi>=0.1` (extra): each shim minor pins its
+  datafusion major.
+
 ## Architecture
 
 A subclass of narwhals' SQL layer (`narwhals._sql`, `narwhals._compliant`),
-the layer DuckDB, Ibis and Spark also use. Tested against the narwhals release
-vendored as the `narwhals/` submodule (2.25) and datafusion 54, the major
-`pyproject.toml` pins.
+the layer DuckDB, Ibis and Spark also use.
 
 | Module | Class |
 |---|---|
@@ -52,21 +58,9 @@ vendored as the `narwhals/` submodule (2.25) and datafusion 54, the major
 | `group_by.py`, `selectors.py`, `expr_str/dt/list/struct.py` | supporting surface |
 | `utils.py` | function-name remapping, window/sort builders, dtype bridge via `narwhals._arrow` |
 
-## `mode`, `skew`, `kurtosis`
-
-These aggregates live in the Rust-only
-[`datafusion-extra-functions`](https://github.com/datafusion-contrib/datafusion-extra-functions)
-crate. The `extra-functions` extra installs
-[`datafusion-extra-functions-ffi`](https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi),
-a prebuilt wheel exposing them through datafusion-python's
-`__datafusion_aggregate_udf__` capsule protocol. Without it the three methods
-raise `NotImplementedError`. The wheel pins the datafusion major it was built
-for.
-
 ## API coverage
 
-narwhals 2.25 on datafusion 54. ⚠️ entries work with the caveat in
-parentheses; see [Known limitations](#known-limitations-as-of-datafusion-54).
+narwhals 2.25 on datafusion 54. ⚠️ entries work with the caveat in parentheses.
 
 | Namespace | ✅ Supported | ⚠️ Partial | ❌ Not supported |
 |---|---|---|---|
@@ -77,39 +71,16 @@ parentheses; see [Known limitations](#known-limitations-as-of-datafusion-54).
 | `Expr.struct` | `field` | | |
 | `LazyFrame` | `collect` `collect_schema` `drop` `drop_nulls` `filter` `group_by` `head` `join` `rename` `select` `sort` `top_k` `unique` `unpivot` `with_columns` `with_row_index` | `explode` (single column) · `sink_parquet` (file path only) | `join_asof` |
 
-Not listed: methods narwhals does not support on any lazy backend
-(`Expr.filter`, `Expr.drop_nulls`, `Expr.unique`, `Expr.map_batches`,
-`Expr.ewm_mean`, `LazyFrame.tail`, `LazyFrame.gather_every`).
+- `mode`, `skew` and `kurtosis` need the `extra-functions` extra. It installs
+  [datafusion-extra-functions-ffi](https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi),
+  a prebuilt wheel of the `datafusion-extra-functions` crate. Without it the
+  three raise `NotImplementedError`.
+- Not in the table: `Expr.filter`, `Expr.drop_nulls`, `Expr.unique`,
+  `Expr.map_batches`, `Expr.ewm_mean`, `LazyFrame.tail`,
+  `LazyFrame.gather_every`. Narwhals does not support them on any lazy backend.
 
-## Known limitations (as of datafusion 54)
+## Known limitations
 
-- `join_asof`, exact `quantile`, `cum_prod`, `list.sum/mean/median`,
-  `dt.total_*`, `dt.offset_by`, `dt.timestamp`, `str.replace`, `Enum` casts:
-  no engine support, raise `NotImplementedError`.
-- `mode`, `skew`, `kurtosis`: need the `extra-functions` extra.
-- `n_unique().over(...)` raises: DataFusion ignores `DISTINCT` inside window
-  aggregates, which would return wrong results. It also drops `ORDER BY` and
-  `IGNORE NULLS` there; this backend moves those onto the window itself.
-- `fill_null(strategy=..., limit=n)` raises: bounded frames with
-  `first_value`/`last_value` need `retract_batch`, not implemented engine-side.
-- `replace_time_zone` supports `None` and `"UTC"` only; use `convert_time_zone`
-  for instant-preserving conversions.
-- `str.to_datetime`/`to_date` require an explicit `format`.
-- `replace_strict` requires an explicit `default`.
-- `nw.scan_csv`/`nw.scan_parquet` cannot dispatch to a plugin backend yet
-  (narwhals gap); read with a `SessionContext` and pass the frame to
-  `nw.from_native`.
-- `str.to_titlecase` uses `initcap`, which does not break words on digits.
-- Row order is guaranteed only after `sort`: `concat` may interleave inputs and
-  backward `fill_null` may reorder rows.
-
-## Development
-
-```sh
-git submodule update --init                       # narwhals at the tested tag
-uv sync --group tests --extra extra-functions
-uv run --group tests pytest tests                 # this package's tests
-uv run --group tests python run_tests.py          # narwhals' suite, known failures deselected
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+- Row order is guaranteed only after `sort`; `concat` may interleave inputs.
+- `nw.scan_csv`/`nw.scan_parquet` cannot dispatch to a plugin yet (narwhals
+  gap); read with a `SessionContext` and pass the frame to `nw.from_native`.

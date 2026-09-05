@@ -82,7 +82,7 @@ jobs:
       - name: install-reqs
         run: uv sync --group tests --group typing --extra extra-functions
       - name: Run pyright
-        # the package, its tests, and the static narwhals Plugin-protocol check
+        # the package and the static narwhals Plugin-protocol check
         run: uv run --group typing pyright
 
   lint:

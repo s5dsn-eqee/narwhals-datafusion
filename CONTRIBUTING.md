@@ -20,7 +20,7 @@ All four must pass before a pull request. CI runs the same commands.
 
 ```console
 uvx pre-commit run --all-files              # ruff format + check, codespell, typos
-uv run --group typing pyright               # package, tests, test_plugin_protocol.py
+uv run --group typing pyright               # package and test_plugin_protocol.py
 uv run --group tests pytest tests           # this package's tests
 uv run --group tests python run_tests.py    # narwhals' suite, known failures deselected
 ```
@@ -37,7 +37,7 @@ list.
 3. `uv run --group tests python update_run_tests.py` and review the diff to
    `run_tests.py`. Tests that pass locally but fail only in CI go in
    `ALWAYS_DESELECTED`.
-4. Update the README coverage table and "Known limitations" in the same commit.
+4. Update the README coverage table in the same commit.
 
 ## Updating the narwhals submodule
 

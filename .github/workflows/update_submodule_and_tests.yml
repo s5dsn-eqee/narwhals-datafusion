@@ -79,4 +79,5 @@ jobs:
       - name: Run local tests
         run: uv run --no-sync pytest tests
       - name: Run narwhals test suite
-        run: uv run --no-sync python run_tests.py -k "not mode and not skew and not kurtosis"
+        # `unary` tests call skew
+        run: uv run --no-sync python run_tests.py -k "not mode and not skew and not kurtosis and not unary"

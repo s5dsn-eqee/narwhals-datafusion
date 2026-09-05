@@ -32,7 +32,7 @@ grep -rn -B3 "raise NotImplementedError" src/narwhals_datafusion/   # partial co
 ## 3. What the suite says
 
 Every name in `TESTS_THAT_NEED_FIX` (`run_tests.py`) must be explained by
-source 2 or a README "Known limitations" bullet; otherwise it is an
+source 2 or a README "Known limitations" bullet (order, `scan_*`); otherwise it is an
 undocumented limitation or a bug.
 
 ## Report

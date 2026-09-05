@@ -27,18 +27,8 @@ convention to read before writing the code it names.
 | [`check-coverage`](.ai/skills/check-coverage/SKILL.md) | auditing API support against the README matrix |
 | [`release`](.ai/skills/release/SKILL.md) | cutting a version, moving a pin, a new datafusion major or shim |
 
-## Checks
-
-```sh
-git submodule update --init
-uv sync --group tests --extra extra-functions
-uvx pre-commit run --all-files
-uv run --group typing pyright
-uv run --group tests pytest tests
-uv run --group tests python run_tests.py
-```
-
-All four checks pass before a commit.
+Setup and the four checks: [CONTRIBUTING.md](CONTRIBUTING.md). All four pass
+before a commit.
 
 ## Conventions
 

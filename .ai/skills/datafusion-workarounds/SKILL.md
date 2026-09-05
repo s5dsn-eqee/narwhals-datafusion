@@ -115,8 +115,7 @@ grep -rn "datafusion" src/narwhals_datafusion/*.py | grep -i "#"
 
 ## Where the truth is
 
-- `README.md` "Known limitations" and the coverage matrix: same commit as any
-  change here.
+- `README.md` coverage matrix: same commit as any change here.
 - `tests/test_smoke.py`: a regression test per entry; add one with a new entry.
 - `narwhals/src/narwhals/_duckdb/`: the reference backend for what narwhals
   expects.

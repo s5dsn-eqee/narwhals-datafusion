@@ -1,9 +1,7 @@
 """Static check that the package satisfies narwhals' `Plugin` protocol.
 
-Not a pytest test: it is verified by `pyright test_plugin_protocol.py` in CI,
-mirroring narwhals-daft. A protocol mismatch (missing `NATIVE_PACKAGE`,
-wrong `__narwhals_namespace__` signature, ...) fails type-checking here
-before it fails at plugin-discovery time for users.
+Not a pytest test: pyright checks the assignment below. A protocol mismatch
+fails here before it fails at plugin discovery for users.
 """
 
 from __future__ import annotations

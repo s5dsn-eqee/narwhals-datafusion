@@ -48,7 +48,7 @@ packages = ["src/narwhals_datafusion"]
 [tool.hatch.build.targets.sdist]
 # ship only what's needed to build the wheel; `narwhals/` is the dev submodule
 exclude = [
-  "docs", "narwhals", "tests", "tmp", ".github", ".hypothesis",
+  "docs", "narwhals", "tests", "tmp", ".github", ".hypothesis", ".gitmodules",
   "run_tests.py", "update_run_tests.py", "uv.lock",
   ".ai", ".claude", "AGENTS.md", "CLAUDE.md", "CONTRIBUTING.md", ".pre-commit-config.yaml",
   "test_plugin_protocol.py",

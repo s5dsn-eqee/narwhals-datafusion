@@ -372,7 +372,7 @@ def test_collect_to_pandas_and_polars() -> None:
 
 
 def test_documented_refusals() -> None:
-    # deliberate refusals, listed under README "Known limitations"
+    # deliberate refusals, listed in the README coverage table
     lf = nw.from_native(df_native())
     with pytest.raises(NotImplementedError, match="n_unique"):
         lf.select(nw.col("a").n_unique().over("b"))
