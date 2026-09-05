@@ -1,7 +1,7 @@
 ---
 name: sync-narwhals
 description: Bump the vendored narwhals submodule to a new release, regenerate the TESTS_THAT_NEED_FIX skip list, triage every newly failing narwhals test into a known-limitation bucket or a bug, and update the README version markers. Use after a narwhals release, when the weekly auto-update PR arrives, or when run_tests.py stops being green.
-argument-hint: "[target] (e.g., \"v2.26.0\", \"latest\", or omit to re-triage the current pin)"
+argument-hint: "[target] (e.g., \"v2.26.0\", \"latest\", or omit to re-triage the current submodule tag)"
 ---
 
 # Sync the narwhals submodule
@@ -36,14 +36,17 @@ submodule bump and the skip-list regeneration and opens a PR. A PR from it
 whose diff to `run_tests.py` is large, or whose CI fails on an import or
 attribute error, means the new release moved a private hook this backend
 subclasses; that is a code fix and a patch release, because users on the new
-narwhals are already hitting it.
+narwhals are already hitting it. GitHub does not run scheduled workflows on
+forks; on a fork, trigger it with `workflow_dispatch` or follow the steps
+below locally.
 
 ## Step 2 — run the full, unfiltered suite
 
 ```bash
+mkdir -p tmp    # gitignored scratch directory
 uv run --group tests python -m pytest narwhals/tests \
   -c narwhals/pyproject.toml -p narwhals_datafusion.testing -p env \
-  --use-external-constructor --tb=short -q --color=no 2>&1 | tee /tmp/full.txt
+  --use-external-constructor --tb=short -q --color=no 2>&1 | tee tmp/full-run.txt
 ```
 
 `-c narwhals/pyproject.toml` matters: it applies narwhals' own pytest config
@@ -111,7 +114,7 @@ Update in the same commit:
 
 - `README.md`: the "currently X.Y" in the Architecture section, the header of
   the coverage matrix (`narwhals==X.Y`) and any rows that moved.
-- `docs/backlog.md` failure counts and buckets, if that local file is in use.
+- The reference numbers table in Step 2 of this skill.
 
 Commit message stays one line, e.g. `bump narwhals to 2.26, retriage skip list`.
 

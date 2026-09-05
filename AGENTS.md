@@ -29,7 +29,8 @@ Task-specific instructions live in `.ai/skills/`, one directory per skill with
 a `SKILL.md` (YAML frontmatter: `name`, `description`, `argument-hint`, then
 the instructions). `.claude/skills` is a symlink to that directory so Claude
 Code discovers them; other agents should list `.ai/skills/` and read each
-`SKILL.md`.
+`SKILL.md`. On a Windows checkout without `core.symlinks` the symlink is a
+plain text file holding the path; read `.ai/skills/` directly.
 
 Descriptions beginning with `TRIGGER —` are conventions to read *before*
 writing code that meets the stated condition, not tasks to run on request.

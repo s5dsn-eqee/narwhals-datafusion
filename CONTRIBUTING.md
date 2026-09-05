@@ -4,7 +4,7 @@ Clone this repository with the `--recursive` flag so the narwhals submodule
 comes along.
 
 ```console
-git clone git@github.com:s5dsn-eqee/narwhals-datafusion.git --recursive
+git clone --recursive https://github.com/s5dsn-eqee/narwhals-datafusion.git
 cd narwhals-datafusion
 ```
 
@@ -16,10 +16,13 @@ git submodule update --init --recursive
 
 Create the environment. `uv sync` builds a virtual environment, installs the
 package in editable mode, and installs narwhals editable from the submodule
-(configured in `pyproject.toml` under `[tool.uv.sources]`).
+(configured in `pyproject.toml` under `[tool.uv.sources]`). The
+`extra-functions` extra is the prebuilt shim behind `mode`/`skew`/`kurtosis`;
+the narwhals suite expects it. [Install uv](https://docs.astral.sh/uv/) first
+if you do not have it.
 
 ```console
-uv sync --group tests
+uv sync --group tests --extra extra-functions
 ```
 
 Install the pre-commit hooks so formatting, lint and spelling run on every

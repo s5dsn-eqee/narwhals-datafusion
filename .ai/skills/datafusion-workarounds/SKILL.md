@@ -1,15 +1,18 @@
 ---
 name: datafusion-workarounds
-description: "TRIGGER — read before adding or changing any expression, aggregate, window, join, cast, or dtype code in src/narwhals_datafusion/. DataFusion 54 diverges from the SQL semantics narwhals' _sql layer assumes in a fixed set of ways, and each one already has a settled workaround in this codebase. Reuse the existing pattern; do not design a new one, and never let an engine quirk produce a silently wrong result."
+description: "TRIGGER — read before adding or changing any expression, aggregate, window, join, cast, or dtype code in src/narwhals_datafusion/. DataFusion (54 at the time of writing) diverges from the SQL semantics narwhals' _sql layer assumes in a fixed set of ways, and each one already has a settled workaround in this codebase. Reuse the existing pattern; do not design a new one, and never let an engine quirk produce a silently wrong result."
 argument-hint: "[area] (e.g., \"windows\", \"joins\", \"column names\", \"aggregates\", \"dtypes\", or omit to review the whole list)"
 ---
 
 # DataFusion workarounds
 
 narwhals' `_sql` layer generates one logical shape and expects every SQL
-backend to honour it. DataFusion 54 does not in the cases below. Each entry
-names the quirk, the file that handles it, and the rule to follow. If you hit
-a new one, add it here in the same commit as the fix.
+backend to honour it. DataFusion does not in the cases below, verified on 54
+(the floor in `pyproject.toml`; `uv.lock` records the release last tested).
+Each entry names the quirk, the file that handles it, and the rule to follow.
+If you hit a new one, add it here in the same commit as the fix. If a newer
+datafusion fixes one, keep the workaround until the floor moves past the
+broken release, and note the fixed version in the entry.
 
 ## Rule 0 — grep before you write
 
@@ -42,9 +45,8 @@ it is the one to copy.
 - Reflected operators (`__rpow__`, `__rtruediv__`) must `.alias("literal")`,
   matching what narwhals expects for a literal-on-the-left result.
 - Wrap scalars with `lit()` explicitly everywhere. datafusion-python is adding
-  auto-wrapping for some function arguments, but the versions this project
-  pins do not have it uniformly, so explicit `lit()` is the version-robust
-  form.
+  auto-wrapping for some function arguments, but the floor release (54) does
+  not have it uniformly, so explicit `lit()` is the version-robust form.
 - `_ensure_expr` in `utils.py` exists because narwhals' `_function` helper
   passes raw Python values through `FUNCTION_REMAP`; use it in remap lambdas
   rather than assuming an `Expr`.

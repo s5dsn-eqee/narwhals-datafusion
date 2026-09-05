@@ -6,6 +6,13 @@ argument-hint: "[what] (e.g., \"0.2.0\", \"datafusion 55\", \"ffi shim\", or omi
 
 # Release and pins
 
+Who can do what: anyone can prepare a release PR (version bump, checklist
+green). Pushing to `main` and pushing a `v*` tag need write access to this
+repository; PyPI trusted publishing is bound to this repository's
+`release.yml`, so a fork cannot publish. The shim lives in a separate
+repository; if you do not have write access there, open an issue in it and
+finish the steps here that do not depend on the shim.
+
 ## The three pins and why each exists
 
 All three are floors, daft-style (`narwhals-daft` ships `daft>=0.5.18,
@@ -106,8 +113,6 @@ curl -s https://pypi.org/integrity/narwhals-datafusion/<version>/<wheel filename
 - Badges in the README are proxied by GitHub's Camo cache. If a badge shows
   stale or empty right after a release, purge it with `curl -X PURGE <camo url>`
   or wait a day.
-- Pushes from this machine must use the GitHub noreply author email; the
-  account blocks pushes that expose the private address.
 
 ## sdist contents
 
