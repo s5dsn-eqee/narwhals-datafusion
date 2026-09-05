@@ -36,7 +36,7 @@ list.
 2. Add a regression test to `tests/test_smoke.py`.
 3. `uv run --group tests python update_run_tests.py` and review the diff to
    `run_tests.py`. Tests that pass locally but fail only in CI go in
-   `ALWAYS_DESELECTED`.
+   `ALWAYS_DESELECTED`; tests that need the extra go in `TESTS_NEED_EXTRA`.
 4. Update the README coverage table in the same commit.
 
 ## Updating the narwhals submodule
@@ -49,8 +49,8 @@ uv run --group tests python update_run_tests.py
 ```
 
 Triage per [`.ai/skills/sync-narwhals/SKILL.md`](.ai/skills/sync-narwhals/SKILL.md).
-A weekly workflow does the bump and opens a PR; its second job runs both suites
-on the newest datafusion.
+`sync-narwhals.yml` does this weekly and opens a PR; `compat.yml` runs both
+suites on the newest narwhals release.
 
 ## Commits and releases
 

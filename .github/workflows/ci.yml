@@ -14,28 +14,23 @@ permissions:
 
 jobs:
   pytest:
-    strategy:
-      matrix:
-        # oldest and newest supported, plus the everyday one
-        python-version: ["3.10", "3.12", "3.13"]
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
       - uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: "true"
-          cache-suffix: pytest-${{ matrix.python-version }}
+          cache-suffix: pytest
           cache-dependency-glob: "pyproject.toml"
       - name: install-reqs
         # narwhals is editable from the submodule ([tool.uv.sources])
-        run: |
-          git submodule update --init --recursive
-          uv sync --group tests --extra extra-functions
+        run: uv sync --group tests --extra extra-functions
       - name: show-deps
         run: uv pip freeze
       - name: Run local tests
@@ -44,7 +39,7 @@ jobs:
         run: uv run --group tests python run_tests.py
 
   pytest-without-extra:
-    # bare install: mode/skew/kurtosis raise NotImplementedError naming the extra
+    # bare install: the extra's tests raise NotImplementedError or deselect
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -63,6 +58,8 @@ jobs:
         run: uv sync --group tests
       - name: Run local tests
         run: uv run --group tests pytest tests
+      - name: Run narwhals test suite
+        run: uv run --group tests python run_tests.py
 
   pyright:
     runs-on: ubuntu-latest
@@ -86,11 +83,7 @@ jobs:
         run: uv run --group typing pyright
 
   lint:
-    strategy:
-      matrix:
-        python-version: ["3.12"]
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - name: Install uv

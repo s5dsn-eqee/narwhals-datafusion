@@ -1,6 +1,6 @@
 ---
 name: sync-narwhals
-description: Bump the vendored narwhals submodule to a new release, regenerate the TESTS_THAT_NEED_FIX skip list, triage every newly failing narwhals test, and update the README version markers. Use after a narwhals release, when the weekly auto-update PR arrives, or when run_tests.py stops being green.
+description: Bump the vendored narwhals submodule to a new release, regenerate the TESTS_THAT_NEED_FIX skip list, triage every newly failing narwhals test, and update the README version markers. Use after a narwhals release, when the weekly sync PR or a `compat` issue arrives, or when run_tests.py stops being green.
 argument-hint: "[target] (e.g., \"v2.26.0\", \"latest\", or omit to re-triage the current submodule tag)"
 ---
 
@@ -20,8 +20,8 @@ git -C narwhals checkout vX.Y.Z      # a v* tag, never main
 uv sync --group tests --extra extra-functions
 ```
 
-The weekly workflow (`update_submodule_and_tests.yml`) does this and opens a
-PR. A large `run_tests.py` diff or an import/attribute error in its CI means a
+The weekly workflow (`sync-narwhals.yml`) does this and opens a PR. A large
+`run_tests.py` diff or an import/attribute error in its CI means a
 private hook moved: fix the code and cut a patch release, users are already on
 the new narwhals. Scheduled workflows do not run on forks; use
 `workflow_dispatch` or these steps.
@@ -55,10 +55,10 @@ uv run --group tests python update_run_tests.py
 git diff run_tests.py
 ```
 
-The script parses `FAILED`/`ERROR` lines and rewrites `TESTS_THAT_NEED_FIX`. It
-refuses to write when pytest reports failures but none were parsed; then the
-output format changed and the regex needs updating. Never commit an emptied
-list.
+The script parses `FAILED`/`ERROR` lines and rewrites `TESTS_THAT_NEED_FIX`;
+`ALWAYS_DESELECTED` and `TESTS_NEED_EXTRA` it leaves alone. It refuses to write
+when pytest reports failures but none were parsed; then the output format
+changed and the regex needs updating. Never commit an emptied list.
 
 ## 4. Triage each new name
 
@@ -69,6 +69,7 @@ list.
 | Changed internal contract | failure inside `narwhals/_sql` or `_compliant` | fix to the new contract; read the DuckDB backend's diff for that release |
 | Engine bug or gap | DataFusion error text | workaround plus `datafusion-workarounds` entry, or `NotImplementedError` |
 | Order-dependent or CI-only | passes on rerun, asserts row order without sort, or asserts only under `CI=true` | `ALWAYS_DESELECTED` in `run_tests.py` with a comment; the regenerator leaves it alone |
+| Needs the extra | passes with the shim, `NotImplementedError` naming the extra without it | `TESTS_NEED_EXTRA` in `run_tests.py`; deselected only when the shim is absent |
 
 For each name that left the list, confirm it passes for the right reason and
 move its README cell if a caveat no longer applies. One failure in full:

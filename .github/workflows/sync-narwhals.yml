@@ -1,0 +1,54 @@
+name: sync narwhals
+
+# weekly: bump the submodule to the newest narwhals release, regenerate the
+# skip list, open a PR
+on:
+  schedule:
+    - cron: "0 12 * * 4"
+  workflow_dispatch:
+
+env:
+  PY_COLORS: 1
+  PYTEST_ADDOPTS: "--numprocesses=logical"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: "true"
+          cache-suffix: sync-narwhals
+          cache-dependency-glob: "pyproject.toml"
+      - name: update-submodule
+        # release tags only, never main
+        run: |
+          git -C narwhals fetch --tags --quiet origin
+          tag=$(git -C narwhals tag --list 'v[0-9]*' --sort=-v:refname | head -n 1)
+          git -C narwhals checkout --quiet "$tag"
+          echo "narwhals $tag"
+      - name: install-reqs
+        # the extra's tests must run to be triaged
+        run: uv sync --group tests --extra extra-functions
+      - name: show-deps
+        run: uv pip freeze
+      - name: update-tests
+        run: uv run --group tests python update_run_tests.py
+      - name: create-pull-request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          commit-message: bump narwhals submodule and regenerate skip list
+          title: bump narwhals submodule and regenerate skip list
+          branch: chore/sync-narwhals
+          delete-branch: true

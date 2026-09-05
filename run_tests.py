@@ -1,11 +1,13 @@
 """Run narwhals' own test suite (the `narwhals/` submodule) against this backend.
 
 Known failures are deselected via `TESTS_THAT_NEED_FIX`; regenerate it with
-`update_run_tests.py`. Extra arguments pass through to pytest.
+`update_run_tests.py`. Without the shim, `TESTS_NEED_EXTRA` is deselected too.
+Extra arguments pass through to pytest.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
@@ -85,7 +87,12 @@ ALWAYS_DESELECTED: list[str] = [
     "test_package_version",
 ]
 
+# pass with the `extra-functions` extra, fail without it; `unary` calls skew
+TESTS_NEED_EXTRA: list[str] = ["test_kurtosis", "test_mode", "test_skew", "test_unary"]
+
 DESELECTED = [*TESTS_THAT_NEED_FIX, *ALWAYS_DESELECTED]
+if importlib.util.find_spec("datafusion_extra_functions_ffi") is None:
+    DESELECTED += TESTS_NEED_EXTRA
 
 # extra arguments pass through to pytest; paths replace the default target
 extra = sys.argv[1:]

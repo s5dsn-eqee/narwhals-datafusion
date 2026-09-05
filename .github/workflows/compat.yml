@@ -1,0 +1,67 @@
+name: compat
+
+# weekly; what a fresh install gets today. Feeds the README badge and opens an
+# issue when red.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+env:
+  PY_COLORS: 1
+  PYTEST_ADDOPTS: "--numprocesses=logical"
+
+permissions:
+  contents: read
+
+jobs:
+  latest:
+    # newest narwhals release; datafusion and the shim as the cap resolves them
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: newest-narwhals
+        # release tags only, never main
+        run: |
+          git -C narwhals fetch --tags --quiet origin
+          tag=$(git -C narwhals tag --list 'v[0-9]*' --sort=-v:refname | head -n 1)
+          git -C narwhals checkout --quiet "$tag"
+          echo "narwhals $tag"
+      - name: install-reqs
+        # `--upgrade` ignores the lock's pins, not the project bounds
+        run: uv sync --upgrade --group tests --extra extra-functions
+      - name: show-deps
+        run: uv pip freeze | grep -i 'datafusion\|narwhals'
+      - name: Run local tests
+        run: uv run --group tests pytest tests
+      - name: Run narwhals test suite
+        run: uv run --group tests python run_tests.py
+
+  issue:
+    # one open issue per breakage; later failures comment on it
+    needs: latest
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: open-or-comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="compat: newest narwhals release fails"
+          number=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "Failed again: $RUN_URL"
+          else
+            gh issue create --title "$title" --body "$RUN_URL"
+          fi

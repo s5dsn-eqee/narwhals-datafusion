@@ -1,6 +1,7 @@
 # narwhals-datafusion
 
-[![CI](https://github.com/s5dsn-eqee/narwhals-datafusion/actions/workflows/ci.yml/badge.svg)](https://github.com/s5dsn-eqee/narwhals-datafusion/actions/workflows/ci.yml)
+[![CI](https://github.com/s5dsn-eqee/narwhals-datafusion/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/s5dsn-eqee/narwhals-datafusion/actions/workflows/ci.yml)
+[![compat](https://img.shields.io/github/actions/workflow/status/s5dsn-eqee/narwhals-datafusion/compat.yml?branch=main&label=latest%20narwhals)](https://github.com/s5dsn-eqee/narwhals-datafusion/actions/workflows/compat.yml)
 [![PyPI version](https://badge.fury.io/py/narwhals-datafusion.svg)](https://badge.fury.io/py/narwhals-datafusion)
 [![PEP 740](https://img.shields.io/badge/PEP%20740-attested-3775A9?logo=pypi&logoColor=white)](https://pypi.org/project/narwhals-datafusion/#files)
 [![Downloads](https://static.pepy.tech/badge/narwhals-datafusion/month)](https://pepy.tech/project/narwhals-datafusion)
@@ -39,11 +40,13 @@ plan. Dtypes are pyarrow end-to-end.
 
 ## Compatibility
 
-- Python 3.10 to 3.13.
+- Python `>=3.10`; tested on 3.12.
 - `datafusion>=54,<55`: capped at the tested major; a release moves the cap.
 - `narwhals>=2.25`: floor only; tested on 2.25, the `narwhals/` submodule.
 - `datafusion-extra-functions-ffi>=0.1` (extra): each shim minor pins its
   datafusion major.
+- Weekly, `compat.yml` (the badge): both suites on the newest narwhals release
+  inside the datafusion cap, extra included.
 
 ## Architecture
 

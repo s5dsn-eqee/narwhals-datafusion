@@ -14,7 +14,7 @@ open an issue.
 
 | Pin | Policy |
 |---|---|
-| `narwhals>=2.25` | Floor only. A newer narwhals can break the private `_sql` layer at runtime; the weekly workflow catches it, the fix is code plus a patch release. |
+| `narwhals>=2.25` | Floor only. A newer narwhals can break the private `_sql` layer at runtime; the `compat` workflow catches it, the fix is code plus a patch release. |
 | `datafusion>=54,<55` | Capped at the tested major; moves after both suites pass on the next one. Floor: aggregate arithmetic inside `aggregate()` fails on 53. |
 | `datafusion-extra-functions-ffi>=0.1` (extra) | Unbounded; each shim minor pins its own datafusion major. |
 
@@ -35,9 +35,9 @@ the extra resolves to 54 and a bare install gets 55 with `mode`/`skew`/
    upstream `docs/source/user-guide/upgrade-guides.md` for changes to the
    `__datafusion_aggregate_udf__` getter, release the next shim minor.
 2. Here: cap to `<56`, `uv lock --upgrade-package datafusion` (and the shim
-   once released), run the checklist, fix what changed (the weekly
-   `latest-datafusion` job log lists it), run `check-coverage`, update the
-   engine version in the README and the `datafusion-workarounds` skill.
+   once released), run the checklist, fix what changed, run `check-coverage`,
+   update the engine version in the README and the `datafusion-workarounds`
+   skill.
 3. The `mode` GROUP BY xfail in `tests/test_extra_functions.py` is strict; if
    the new crate fixed it, remove the marker.
 
