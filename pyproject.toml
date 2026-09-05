@@ -11,22 +11,32 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
-  # targets narwhals 2.25 internals (`narwhals._sql`); widen only after testing
-  "narwhals>=2.25,<2.26",
-  # must match the FFI shim's compiled ABI (see extra-functions-ffi dependency)
-  "datafusion>=54,<55",
+  # Floors only, daft-style. This backend subclasses private `narwhals._sql`
+  # internals, and datafusion-python majors change the Python API, so newer
+  # releases can break it at runtime; the tested versions are the `narwhals/`
+  # submodule tag and `uv.lock`, and the weekly workflow runs both suites on
+  # the newest narwhals tag and the newest datafusion (see the release skill).
+  "narwhals>=2.25",
+  # floor: arithmetic over two aggregates inside `aggregate()` needs 54
+  "datafusion>=54",
   "pyarrow>=14.0.0",
-  # FFI shim for `mode`/`skew`/`kurtosis`; prebuilt wheels from
-  # https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi
-  "datafusion-extra-functions-ffi>=0.1,<0.2",
 ]
 classifiers = [
+  "Development Status :: 3 - Alpha",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
+
+[project.optional-dependencies]
+# `mode`/`skew`/`kurtosis` need this FFI shim (prebuilt wheels from
+# https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi). Without it
+# those three raise NotImplementedError; everything else works. The shim's own
+# dependency pin ties each shim minor to the datafusion major it was compiled
+# against, so the resolver pairs them and no ceiling is needed here.
+extra-functions = ["datafusion-extra-functions-ffi>=0.1"]
 
 [project.urls]
 Repository = "https://github.com/s5dsn-eqee/narwhals-datafusion"

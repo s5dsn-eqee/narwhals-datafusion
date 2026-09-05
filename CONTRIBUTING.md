@@ -85,21 +85,22 @@ All four must pass before you open a pull request.
 
 ## Updating the narwhals submodule
 
-The submodule is pinned to a release tag, never to `main`, and
-`pyproject.toml` pins narwhals to the same minor. Bump both together:
+The submodule is pinned to a release tag, never to `main`; it is the narwhals
+release the plugin was last tested against (`pyproject.toml` only has a floor).
+Bump it with:
 
 ```console
 git -C narwhals fetch --tags
 git -C narwhals checkout vX.Y.Z
-# edit pyproject.toml: narwhals>=X.Y,<X.(Y+1)
-uv sync --group tests
+uv sync --group tests --extra extra-functions
 uv run --group tests python update_run_tests.py
 ```
 
 Then run the checks, triage anything new in `run_tests.py`, and open a PR.
 [`.ai/skills/sync-narwhals/SKILL.md`](.ai/skills/sync-narwhals/SKILL.md)
 walks through the triage. A weekly GitHub Actions job does the tag bump and
-regeneration automatically and opens a PR when something changed.
+regeneration automatically and opens a PR when something changed; a second job
+in it runs both suites on the newest datafusion release.
 
 ## Commits and pull requests
 

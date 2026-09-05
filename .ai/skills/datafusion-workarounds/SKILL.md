@@ -57,7 +57,9 @@ it is the one to copy.
   `skew` do) fails on datafusion-python 53 and earlier with `Invalid aggregate
   expression`. **This is why the floor is `datafusion>=54`.**
 - `mode`, `skew`, `kurtosis` come from the `datafusion-extra-functions-ffi`
-  wheel via `extra_functions.extra_udaf`. `skew` there is bias-adjusted; the
+  wheel (the `extra-functions` optional extra) via `extra_functions.extra_udaf`;
+  without it they raise `NotImplementedError` naming the extra, and
+  `tests/test_extra_functions.py` covers both paths. `skew` there is bias-adjusted; the
   `_correct` helper in `expr.skew` undoes that and pins the n=0/1/2 edge cases
   to match narwhals. `mode` in a multi-partition GROUP BY is broken upstream
   (strict xfail in `tests/test_extra_functions.py`); do not work around it in

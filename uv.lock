@@ -393,9 +393,13 @@ name = "narwhals-datafusion"
 source = { editable = "." }
 dependencies = [
     { name = "datafusion" },
-    { name = "datafusion-extra-functions-ffi" },
     { name = "narwhals" },
     { name = "pyarrow" },
+]
+
+[package.optional-dependencies]
+extra-functions = [
+    { name = "datafusion-extra-functions-ffi" },
 ]
 
 [package.dev-dependencies]
@@ -415,11 +419,12 @@ typing = [
 
 [package.metadata]
 requires-dist = [
-    { name = "datafusion", specifier = ">=54,<55" },
-    { name = "datafusion-extra-functions-ffi", specifier = ">=0.1,<0.2" },
+    { name = "datafusion", specifier = ">=54" },
+    { name = "datafusion-extra-functions-ffi", marker = "extra == 'extra-functions'", specifier = ">=0.1" },
     { name = "narwhals", editable = "narwhals" },
     { name = "pyarrow", specifier = ">=14.0.0" },
 ]
+provides-extras = ["extra-functions"]
 
 [package.metadata.requires-dev]
 tests = [

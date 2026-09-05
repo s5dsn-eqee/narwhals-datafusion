@@ -1,6 +1,6 @@
 ---
 name: release
-description: Cut a narwhals-datafusion release to PyPI, or move one of the three coupled version pins (datafusion, datafusion-extra-functions-ffi, narwhals). Explains which pin constrains which, what the tag-push workflow does, and the checks that must be green first. Use for "release", "bump datafusion", "re-pin the ffi shim", or "publish".
+description: Cut a narwhals-datafusion release to PyPI, or touch one of the three dependency floors (datafusion, the datafusion-extra-functions-ffi extra, narwhals). Explains why each is a floor with no ceiling, what guards newer releases, what the tag-push workflow does, and the checks that must be green first. Use for "release", "datafusion 55 shipped", "rebuild the ffi shim", or "publish".
 argument-hint: "[what] (e.g., \"0.2.0\", \"datafusion 55\", \"ffi shim\", or omit for the checklist)"
 ---
 
@@ -8,19 +8,35 @@ argument-hint: "[what] (e.g., \"0.2.0\", \"datafusion 55\", \"ffi shim\", or omi
 
 ## The three pins and why each exists
 
-| Pin (`pyproject.toml`) | Bound by | Loosen only when |
+All three are floors, daft-style (`narwhals-daft` ships `daft>=0.5.18,
+narwhals>=2.10.0`). What was actually tested is recorded elsewhere: the
+`narwhals/` submodule tag and `uv.lock`.
+
+| Pin (`pyproject.toml`) | Why the floor | What guards newer releases |
 |---|---|---|
-| `narwhals>=X.Y,<X.(Y+1)` | private `narwhals._sql` internals this backend subclasses | the `sync-narwhals` skill has been run against every release in the wider range |
-| `datafusion>=54,<55` | (a) the FFI shim wheel is compiled against `datafusion-ffi` 54's ABI; (b) arithmetic over two aggregates inside `aggregate()` needs 54 or newer | the shim has been rebuilt against the new major, see below |
-| `datafusion-extra-functions-ffi>=0.1,<0.2` | each shim minor tracks one datafusion major | a new shim minor exists for the new datafusion major |
+| `narwhals>=2.25` | first release whose private `_sql` layer this code was written against | weekly workflow: submodule bumped to the newest tag, suite rerun, PR opened |
+| `datafusion>=54` | arithmetic over two aggregates inside `aggregate()` fails on 53 | weekly workflow `latest-datafusion` job: both suites on the newest release, without the extra |
+| `datafusion-extra-functions-ffi>=0.1` (the `extra-functions` optional extra) | first shim release | the shim's own `datafusion>=N,<N+1` pin per shim minor; the resolver pairs shim and engine |
 
-The datafusion and shim pins **must move together**. An aggregate UDF capsule
-built for one `datafusion-ffi` major loaded into another is undefined
-behaviour, not an error: datafusion-python's version check on imported
-capsules covers table providers, codecs and query planners, but not
-aggregate UDFs.
+Newer narwhals or datafusion can break this backend at **runtime**, not at
+resolve time, since the private-API and Python-API changes are invisible to a
+resolver. That is the accepted trade for not conflicting with whatever narwhals
+a user already has installed. The response to a break is a code fix and a
+patch release, never a ceiling.
 
-## Moving to a new datafusion major (e.g. 55)
+The shim's own pin is load-bearing: an aggregate UDF capsule built for one
+`datafusion-ffi` major loaded into another is undefined behaviour, not an
+error, because datafusion-python's version check on imported capsules covers
+table providers, codecs and query planners, but not aggregate UDFs. Never loosen
+the pin in the shim repo, and keep one shim minor per datafusion major.
+
+## When a new datafusion major ships (e.g. 55)
+
+Users get it as soon as it resolves. The `extra-functions` extra keeps
+resolving to the old major until a matching shim minor exists (the resolver
+backtracks datafusion to satisfy the shim's pin), so `pip install
+narwhals-datafusion[extra-functions]` stays on 54 while a bare install moves to
+55 with `mode`/`skew`/`kurtosis` raising `NotImplementedError`.
 
 1. In the shim repo (`s5dsn-eqee/datafusion-extra-functions-ffi`):
    `Cargo.toml` bumps `datafusion-expr`, `datafusion-ffi` and re-pins the
@@ -30,10 +46,12 @@ aggregate UDFs.
    through datafusion-python 55; check `docs/source/user-guide/upgrade-guides.md`
    upstream for the release you are moving to before assuming that holds.
    Release the shim as the next minor.
-2. Here: bump both pins, `uv lock`, run the full checklist below, and run
-   `check-coverage` since a new engine major often unblocks a
-   `not_implemented()` (the README "Known limitations" heading carries the
-   engine version).
+2. Here: `uv lock --upgrade-package datafusion` (and the shim once its minor
+   exists) so the lockfile records the new tested version, run the full
+   checklist below, and run `check-coverage` since a new engine major often
+   unblocks a `not_implemented()` (the README "Known limitations" heading
+   carries the engine version). If the `latest-datafusion` weekly job already
+   went red, its log is the list of what to fix.
 3. Watch for the `mode` GROUP BY xfail in `tests/test_extra_functions.py`: it
    is `strict=True`, so if the upstream crate fixed it the test fails as
    XPASS and the marker must come off.
@@ -46,7 +64,8 @@ dynamic version, and `uv.lock` deliberately carries no version for this
 package.
 
 ```bash
-# 1. checks
+# 1. checks (CI also runs `pytest tests` without the extra)
+uv sync --group tests --extra extra-functions
 uvx pre-commit run --all-files
 uv run --group tests pytest tests
 uv run --group tests python run_tests.py
@@ -78,8 +97,10 @@ curl -s https://pypi.org/integrity/narwhals-datafusion/<version>/<wheel filename
 
 ## After publishing
 
-- Install from PyPI in a fresh venv and run a one-liner that exercises
-  `mode` or `skew`, which proves the shim wheel resolved for that platform.
+- Install `narwhals-datafusion[extra-functions]` from PyPI in a fresh venv
+  and run a one-liner that exercises `mode` or `skew`, which proves the shim
+  wheel resolved for that platform. Then install the bare package in another
+  venv and check `mode` raises `NotImplementedError` naming the extra.
 - Confirm the PyPI project page shows "Trusted publishing, provides
   attestations" under the new files (see the curl check above).
 - Badges in the README are proxied by GitHub's Camo cache. If a badge shows

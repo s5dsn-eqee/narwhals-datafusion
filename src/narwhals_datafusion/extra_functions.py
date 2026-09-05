@@ -2,10 +2,10 @@
 
 The upstream crate is Rust-only; the companion
 [`datafusion-extra-functions-ffi`](https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi)
-wheel — a required dependency — exposes its aggregate UDFs through
-datafusion-python's `__datafusion_aggregate_udf__` PyCapsule protocol. The
-lookup still degrades gracefully (raising `NotImplementedError` from the
-narwhals operations) if the wheel is missing or lacks a function.
+wheel — the `extra-functions` optional extra — exposes its aggregate UDFs
+through datafusion-python's `__datafusion_aggregate_udf__` PyCapsule protocol.
+Without the extra the lookup returns `None` and the narwhals operations raise
+`NotImplementedError` pointing at it.
 """
 
 from __future__ import annotations
@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 
 INSTALL_HINT = (
     "it needs the `datafusion-extra-functions-ffi` package "
-    "(FFI bindings for the `datafusion-extra-functions` Rust crate), "
-    "which is a required dependency -- reinstall `narwhals-datafusion`."
+    "(FFI bindings for the `datafusion-extra-functions` Rust crate). "
+    'Install the extra: `pip install "narwhals-datafusion[extra-functions]"`.'
 )
 
 

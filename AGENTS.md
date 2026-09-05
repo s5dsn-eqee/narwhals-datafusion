@@ -15,10 +15,13 @@ private SQL layer (`narwhals._sql`, `narwhals._compliant`), the same shape as
 the built-in DuckDB backend and the `narwhals-daft` plugin. Every file in
 `src/narwhals_datafusion/` overrides only what DataFusion does differently.
 
-Because it targets private narwhals internals, `pyproject.toml` pins narwhals
-to one minor release and the exact tag is vendored as the `narwhals/` git
-submodule. Develop and test against that submodule, never against a
-site-packages narwhals.
+Because it targets private narwhals internals, the exact narwhals release it
+was last tested against is vendored as the `narwhals/` git submodule.
+`pyproject.toml` has floors only (`narwhals>=2.25`, `datafusion>=54`), so a
+newer release can break the plugin at runtime; the weekly workflow runs both
+suites on the newest narwhals tag and the newest datafusion to catch that.
+Develop and test against the submodule, never against a site-packages
+narwhals.
 
 ## Skills
 
@@ -36,13 +39,13 @@ writing code that meets the stated condition, not tasks to run on request.
 | [`datafusion-workarounds`](.ai/skills/datafusion-workarounds/SKILL.md) | TRIGGER: before touching any expression, window, join, or dtype code |
 | [`sync-narwhals`](.ai/skills/sync-narwhals/SKILL.md) | bumping the narwhals submodule or regenerating the skip list |
 | [`check-coverage`](.ai/skills/check-coverage/SKILL.md) | auditing which narwhals APIs this backend supports and keeping the README matrix honest |
-| [`release`](.ai/skills/release/SKILL.md) | cutting a version, moving the datafusion pin, or re-pinning the FFI shim |
+| [`release`](.ai/skills/release/SKILL.md) | cutting a version, or reacting to a new datafusion major or a new FFI shim |
 
 ## Setup and checks
 
 ```sh
 git submodule update --init          # narwhals at the pinned tag
-uv sync --group tests
+uv sync --group tests --extra extra-functions   # the extra: mode/skew/kurtosis shim
 uvx pre-commit run --all-files       # ruff format + check, codespell, typos; CI runs exactly this
 uv run --group typing pyright        # package, tests, and test_plugin_protocol.py
 uv run --group tests pytest tests    # this package's own suite (fast)
@@ -68,9 +71,12 @@ and how to interpret it are described in the `sync-narwhals` skill.
 - **The README coverage matrix is part of the change.** Moving a method
   between the supported, partial and unsupported columns, or changing a
   caveat, happens in the same commit as the code.
-- **Pins move in lockstep.** `datafusion`, `datafusion-extra-functions-ffi`
-  and the narwhals submodule each have a reason for their bound; see the
-  `release` skill before loosening any of them.
+- **Floors, not ceilings.** `narwhals>=2.25` and `datafusion>=54` are the
+  oldest releases the code works on; do not add an upper bound when a new
+  release breaks something, fix the code and cut a patch. The submodule tag
+  and `uv.lock` record what was tested. The `extra-functions` shim carries
+  its own datafusion pin per shim minor, so it is optional here and unbounded;
+  see the `release` skill before touching any of the three.
 - **Commit messages are one line**, roughly ten words, imperative, no body
   and no trailers.
 
@@ -84,7 +90,7 @@ src/narwhals_datafusion/
   expr.py           DataFusionExpr: operators, aggregates, windows, casts
   expr_{str,dt,list,struct}.py   sub-namespaces
   utils.py          col() quoting, FUNCTION_REMAP, window_expression, errors
-  extra_functions.py  mode/skew/kurtosis via the FFI shim wheel
+  extra_functions.py  mode/skew/kurtosis via the FFI shim (optional extra)
   testing.py        pytest plugin that feeds narwhals' suite a DataFusion frame
 tests/              this package's own smoke and regression tests
 run_tests.py        curated narwhals-suite runner (TESTS_THAT_NEED_FIX)

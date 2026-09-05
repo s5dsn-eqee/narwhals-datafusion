@@ -113,8 +113,21 @@ command = [
     "env",
     "--use-external-constructor",
 ]
+# pytest keeps only the last `-k`, so a caller's expression is combined with
+# the skip list (`and`) instead of replacing it; the weekly latest-datafusion
+# job relies on this
+keyword = None
+if "-k" in options:
+    at = options.index("-k")
+    keyword = options.pop(at + 1)
+    options.pop(at)
+expressions = []
 if DESELECTED:
-    command += ["-k", f"not ({' or '.join(DESELECTED)})"]
+    expressions.append(f"not ({' or '.join(DESELECTED)})")
+if keyword:
+    expressions.append(f"({keyword})")
+if expressions:
+    command += ["-k", " and ".join(expressions)]
 
 command.extend(options)
 

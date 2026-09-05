@@ -35,9 +35,10 @@ executes in DataFusion's Rust engine. Dtypes are pyarrow end-to-end.
 ## Architecture
 
 The backend sits on narwhals' shared SQL layer (`narwhals._sql`), the same
-abstraction DuckDB, Ibis, and Spark use. It targets `narwhals==2.25` internals
-(`narwhals._sql`, `narwhals._compliant`), vendored as the `narwhals/` git
-submodule pinned to that release. The plugin provides:
+abstraction DuckDB, Ibis, and Spark use. It subclasses narwhals' private
+internals (`narwhals._sql`, `narwhals._compliant`), so it is tested against one
+exact release, vendored as the `narwhals/` git submodule (currently 2.25), and
+the dependency pins are floors only. The plugin provides:
 
 | Module | Class |
 |---|---|
@@ -54,11 +55,19 @@ like `mode`/`skewness`/`kurtosis` live in the contrib
 [`datafusion-extra-functions`](https://github.com/datafusion-contrib/datafusion-extra-functions)
 crate (Rust-only, no wheel on PyPI). The
 [`datafusion-extra-functions-ffi`](https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi)
-package — a required dependency, installed as a prebuilt wheel — exposes its
-aggregate UDFs to datafusion-python via the `__datafusion_aggregate_udf__`
-PyCapsule protocol; they back `Expr.mode`, `Expr.skew`, and `Expr.kurtosis`.
-Its FFI ABI is tied to the `datafusion` major it was compiled against
-(currently 54), which the wheel's own dependency pin enforces.
+package — a prebuilt wheel, installed through the `extra-functions` extra —
+exposes its aggregate UDFs to datafusion-python via the
+`__datafusion_aggregate_udf__` PyCapsule protocol; they back `Expr.mode`,
+`Expr.skew`, and `Expr.kurtosis`:
+
+```sh
+pip install "narwhals-datafusion[extra-functions]"
+```
+
+Without the extra those three methods raise `NotImplementedError` and
+everything else works. The shim's FFI ABI is tied to the `datafusion` major it
+was compiled against (currently 54), which the wheel's own dependency pin
+enforces.
 
 ## API coverage
 
@@ -68,7 +77,7 @@ Status of the narwhals public API on this backend (`narwhals==2.25`,
 
 | Namespace | ✅ Supported | ⚠️ Partial | ❌ Not supported |
 |---|---|---|---|
-| `Expr` | `abs` `alias` `all` `any` `any_value` `ceil` `clip` `cos` `count` `cum_count` `cum_max` `cum_min` `cum_sum` `diff` `exp` `fill_nan` `first` `floor` `is_between` `is_close` `is_duplicated` `is_finite` `is_first_distinct` `is_in` `is_last_distinct` `is_nan` `is_null` `is_unique` `kurtosis` `last` `len` `log` `max` `mean` `median` `min` `null_count` `over` `pipe` `rank` `rolling_mean` `rolling_std` `rolling_sum` `rolling_var` `round` `shift` `sin` `skew` `sqrt` `std` `sum` `var` | `cast` (no `Enum`) · `fill_null` (no `strategy` + `limit`) · `mode` (`keep="any"` only) · `n_unique` (not over windows) · `replace_strict` (explicit `default` required) | `cum_prod` `quantile` |
+| `Expr` | `abs` `alias` `all` `any` `any_value` `ceil` `clip` `cos` `count` `cum_count` `cum_max` `cum_min` `cum_sum` `diff` `exp` `fill_nan` `first` `floor` `is_between` `is_close` `is_duplicated` `is_finite` `is_first_distinct` `is_in` `is_last_distinct` `is_nan` `is_null` `is_unique` `last` `len` `log` `max` `mean` `median` `min` `null_count` `over` `pipe` `rank` `rolling_mean` `rolling_std` `rolling_sum` `rolling_var` `round` `shift` `sin` `sqrt` `std` `sum` `var` | `cast` (no `Enum`) · `fill_null` (no `strategy` + `limit`) · `kurtosis` (`[extra-functions]` extra) · `mode` (`[extra-functions]` extra, `keep="any"` only) · `n_unique` (not over windows) · `replace_strict` (explicit `default` required) · `skew` (`[extra-functions]` extra) | `cum_prod` `quantile` |
 | `Expr.str` | `contains` `ends_with` `head` `len_chars` `pad_end` `pad_start` `replace_all` `slice` `split` `starts_with` `strip_chars` `strip_chars_end` `strip_chars_start` `tail` `to_lowercase` `to_time` `to_uppercase` `zfill` | `to_date`/`to_datetime` (explicit `format` required) · `to_titlecase` (no word breaks on digits) | `replace` (use `replace_all`) |
 | `Expr.dt` | `convert_time_zone` `date` `day` `hour` `microsecond` `millisecond` `minute` `month` `nanosecond` `ordinal_day` `second` `to_string` `truncate` `weekday` `year` | `replace_time_zone` (`None`/`"UTC"` only) | `offset_by` `timestamp` `total_microseconds` `total_milliseconds` `total_minutes` `total_nanoseconds` `total_seconds` |
 | `Expr.list` | `contains` `get` `len` `max` `min` `sort` | `unique` (`maintain_order=False` only) | `mean` `median` `sum` |
@@ -85,6 +94,8 @@ Not listed: methods narwhals itself doesn't support on *any* lazy/SQL backend
   `cum_prod`, `list.sum/mean/median`, `dt.total_*`, `dt.offset_by`,
   `dt.timestamp`, `str.replace`, `Enum` casts — no engine support;
   raise `NotImplementedError`.
+- `mode`, `skew`, `kurtosis` need the `extra-functions` extra (see above);
+  without it they raise `NotImplementedError` naming it.
 - `n_unique().over(...)` raises: DataFusion silently ignores `DISTINCT` inside
   window aggregates, which would return wrong results. (The same engine quirk
   drops `ORDER BY`/`IGNORE NULLS` declared inside window aggregates — this
@@ -107,7 +118,7 @@ Not listed: methods narwhals itself doesn't support on *any* lazy/SQL backend
 
 ```sh
 git submodule update --init      # narwhals, pinned to the targeted release
-uv sync --group tests
+uv sync --group tests --extra extra-functions
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.

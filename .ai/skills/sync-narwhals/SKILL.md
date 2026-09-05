@@ -1,18 +1,20 @@
 ---
 name: sync-narwhals
-description: Bump the vendored narwhals submodule to a new release, regenerate the TESTS_THAT_NEED_FIX skip list, triage every newly failing narwhals test into a known-limitation bucket or a bug, and move the pyproject pin. Use after a narwhals release, when the weekly auto-update PR arrives, or when run_tests.py stops being green.
+description: Bump the vendored narwhals submodule to a new release, regenerate the TESTS_THAT_NEED_FIX skip list, triage every newly failing narwhals test into a known-limitation bucket or a bug, and update the README version markers. Use after a narwhals release, when the weekly auto-update PR arrives, or when run_tests.py stops being green.
 argument-hint: "[target] (e.g., \"v2.26.0\", \"latest\", or omit to re-triage the current pin)"
 ---
 
 # Sync the narwhals submodule
 
 This backend targets narwhals' private `_sql` layer, so every narwhals
-release can move the ground under it. The submodule at `narwhals/` is the
-exact tag `pyproject.toml` pins, and `run_tests.py` runs narwhals' own suite
-against this backend with a curated skip list. Keeping those three things
-consistent is this skill.
+release can move the ground under it. `pyproject.toml` only has a floor
+(`narwhals>=2.25`), so users get new releases immediately; the submodule at
+`narwhals/` is the exact tag the plugin was last tested against, and
+`run_tests.py` runs narwhals' own suite against this backend with a curated
+skip list. Keeping the submodule, the skip list and the code consistent with
+the newest release is this skill.
 
-## Step 1 — bump the submodule and the pin together
+## Step 1 — bump the submodule
 
 ```bash
 git -C narwhals fetch --tags
@@ -24,15 +26,17 @@ Always check out a `v*` tag. `git submodule update --remote` tracks narwhals'
 `main` branch, which drifts past the release the pin names; the weekly
 workflow picks the newest tag for the same reason.
 
-Then edit `pyproject.toml`: `narwhals>=X.Y,<X.(Y+1)`. The upper bound is one
-minor above the lower bound on purpose; widen it only after the suite passes
-on every release in the range. `uv sync --group tests` picks up the editable
-submodule through `[tool.uv.sources]`.
+`uv sync --group tests --extra extra-functions` picks up the editable
+submodule through `[tool.uv.sources]`. Leave the `narwhals>=` floor alone
+unless the code now needs something the floor release lacks; never add a
+ceiling (see AGENTS.md conventions).
 
 The weekly GitHub workflow (`update_submodule_and_tests.yml`) does the
-submodule bump and the skip-list regeneration but **not** the pin. A PR from
-it that fails CI on an import error usually means the pin needs moving, not
-that the code is wrong.
+submodule bump and the skip-list regeneration and opens a PR. A PR from it
+whose diff to `run_tests.py` is large, or whose CI fails on an import or
+attribute error, means the new release moved a private hook this backend
+subclasses; that is a code fix and a patch release, because users on the new
+narwhals are already hitting it.
 
 ## Step 2 — run the full, unfiltered suite
 
@@ -105,9 +109,8 @@ uv run --group tests python run_tests.py    # must be green
 
 Update in the same commit:
 
-- `pyproject.toml` pin and the "targets narwhals X.Y internals" comment.
-- `README.md` header of the coverage matrix (`narwhals==X.Y`) and any rows
-  that moved.
+- `README.md`: the "currently X.Y" in the Architecture section, the header of
+  the coverage matrix (`narwhals==X.Y`) and any rows that moved.
 - `docs/backlog.md` failure counts and buckets, if that local file is in use.
 
 Commit message stays one line, e.g. `bump narwhals to 2.26, retriage skip list`.

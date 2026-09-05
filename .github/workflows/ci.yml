@@ -35,13 +35,35 @@ jobs:
         # narwhals comes editable from the pinned submodule via [tool.uv.sources]
         run: |
           git submodule update --init --recursive
-          uv sync --group tests
+          uv sync --group tests --extra extra-functions
       - name: show-deps
         run: uv pip freeze
       - name: Run local tests
         run: uv run --group tests pytest tests
       - name: Run narwhals test suite
         run: uv run --group tests python run_tests.py
+
+  pytest-without-extra:
+    # the base install must import and work; `mode`/`skew`/`kurtosis` raise
+    # NotImplementedError pointing at the extra (tests/test_extra_functions.py)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: "true"
+          cache-suffix: pytest-without-extra
+          cache-dependency-glob: "pyproject.toml"
+      - name: install-reqs
+        run: uv sync --group tests
+      - name: Run local tests
+        run: uv run --group tests pytest tests
 
   pyright:
     runs-on: ubuntu-latest
@@ -59,7 +81,7 @@ jobs:
           cache-suffix: pyright
           cache-dependency-glob: "pyproject.toml"
       - name: install-reqs
-        run: uv sync --group tests --group typing
+        run: uv sync --group tests --group typing --extra extra-functions
       - name: Run pyright
         # the package, its tests, and the static narwhals Plugin-protocol check
         run: uv run --group typing pyright

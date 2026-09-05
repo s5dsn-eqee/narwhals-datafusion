@@ -26,7 +26,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
       - name: Run tests
         run: |
-          uv sync --group tests
+          uv sync --group tests --extra extra-functions
           uv run --group tests pytest tests
           uv run --group tests python run_tests.py
 
