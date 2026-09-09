@@ -118,7 +118,8 @@ grep -rn "^\s*# " src/narwhals_datafusion/*.py
   and casts down; `concat` turns a null into a parse error, hence the null
   branch.
 - `btrim` takes one argument; `strip_chars` with a character set is a regex.
-  `re.escape` per character is safe inside a Rust regex class.
+  `re.escape` per character is safe inside a Rust regex class; an empty set
+  returns the input (`[]` is an invalid class).
 
 ## Where the truth is
 

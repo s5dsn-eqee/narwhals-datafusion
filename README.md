@@ -43,7 +43,7 @@ plan. Dtypes are pyarrow end-to-end. A longer tour, extra included:
 
 - Python `>=3.10`; tested on 3.12.
 - `datafusion>=54,<55`: capped at the tested major; a release moves the cap.
-- `narwhals>=2.25`: floor only; tested on 2.25, the `narwhals/` submodule.
+- `narwhals>=2.25`: floor only; tested on 2.26, the `narwhals/` submodule.
 - `datafusion-extra-functions-ffi>=0.1` (extra): each shim minor pins its
   datafusion major.
 - Weekly, `compat.yml` (the badge): both suites on the newest narwhals release
@@ -64,7 +64,7 @@ the layer DuckDB, Ibis and Spark also use.
 
 ## API coverage
 
-narwhals 2.25 on datafusion 54. ⚠️ entries work with the caveat in parentheses.
+narwhals 2.26 on datafusion 54. ⚠️ entries work with the caveat in parentheses.
 
 | Namespace | ✅ Supported | ⚠️ Partial | ❌ Not supported |
 |---|---|---|---|
