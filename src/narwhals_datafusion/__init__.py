@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
     from narwhals_datafusion.namespace import DataFusionNamespace
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 
 NATIVE_PACKAGE = "datafusion"
 
