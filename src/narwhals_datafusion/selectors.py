@@ -1,3 +1,5 @@
+"""Column selectors: the ``nw.selectors`` namespace and the selector expression."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -14,6 +16,8 @@ if TYPE_CHECKING:
 
 
 class DataFusionSelectorNamespace(LazySelectorNamespace["DataFusionLazyFrame", "Expr"]):
+    """``nw.selectors`` for this backend; narwhals supplies every selector."""
+
     @property
     def _selector(self) -> type[DataFusionSelector]:
         return DataFusionSelector
@@ -22,9 +26,12 @@ class DataFusionSelectorNamespace(LazySelectorNamespace["DataFusionLazyFrame", "
 class DataFusionSelector(  # type: ignore[misc]
     CompliantSelector["DataFusionLazyFrame", "Expr"], DataFusionExpr
 ):
+    """A ``DataFusionExpr`` that also supports set operations (``|``, ``&``, ``-``, ``~``)."""
+
     _window_function: DataFusionWindowFunction | None = None
 
     def _to_expr(self) -> DataFusionExpr:
+        """Drop the selector behaviour, keeping the selected columns."""
         return DataFusionExpr(
             self._call,
             self._window_function,

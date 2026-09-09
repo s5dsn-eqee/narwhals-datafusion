@@ -4,6 +4,7 @@ import re
 import string
 from typing import TYPE_CHECKING
 
+import pyarrow as pa
 from datafusion import functions as F
 from narwhals._sql.expr_str import SQLExprStringNamespace
 from narwhals._utils import not_implemented
@@ -17,11 +18,15 @@ if TYPE_CHECKING:
 
 
 def _char_class(characters: str) -> str:
+    """Escape ``characters`` for use inside a regex character class."""
     return "".join(re.escape(char) for char in characters)
 
 
 class DataFusionExprStringNamespace(SQLExprStringNamespace["DataFusionExpr"]):
+    """``Expr.str``; most methods come from ``SQLExprStringNamespace``."""
+
     def strip_chars(self, characters: str | None) -> DataFusionExpr:
+        """Strip ``characters``, whitespace by default, from both ends."""
         # `btrim` takes one argument: character-set trims go through a regex
         chars = _char_class(string.whitespace if characters is None else characters)
         pattern = f"^[{chars}]+|[{chars}]+$"
@@ -42,6 +47,8 @@ class DataFusionExprStringNamespace(SQLExprStringNamespace["DataFusionExpr"]):
         )
 
     def replace_all(self, value: DataFusionExpr, pattern: str, *, literal: bool) -> DataFusionExpr:
+        """Replace every match of ``pattern`` with ``value``; ``literal`` disables regex."""
+
         def func(expr: Expr, value: Expr) -> Expr:
             if literal:
                 return F.replace(expr, lit(pattern), value)
@@ -50,26 +57,27 @@ class DataFusionExprStringNamespace(SQLExprStringNamespace["DataFusionExpr"]):
         return self.compliant._with_elementwise(func, expression_args={"value": value})
 
     def to_datetime(self, format: str | None) -> DataFusionExpr:
+        """Parse with ``format``; inferring one is not supported."""
         if format is None:
             msg = "Cannot infer format with DataFusion, please specify `format` explicitly."
             raise NotImplementedError(msg)
 
         if "%z" in format or "%Z" in format:
             # `%z`/`%Z` parse to UTC but return a naive timestamp: re-attach the zone
-            import pyarrow as pa
-
             return self.compliant._with_elementwise(
                 lambda expr: F.to_timestamp(expr, lit(format)).cast(pa.timestamp("us", tz="UTC"))
             )
         return self.compliant._with_elementwise(lambda expr: F.to_timestamp(expr, lit(format)))
 
     def to_date(self, format: str | None) -> DataFusionExpr:
+        """Parse with ``format``, or cast when none is given."""
         if format is not None:
             return self.compliant._with_elementwise(lambda expr: F.to_date(expr, lit(format)))
         compliant_expr = self.compliant
         return compliant_expr.cast(compliant_expr._version.dtypes.Date())
 
     def to_time(self, format: str | None) -> DataFusionExpr:
+        """Parse with ``format``, or cast when none is given."""
         time_dtype = self.compliant._version.dtypes.Time()
         if format is None:
             # Arrow's cast parses "HH:MM:SS" strings directly
@@ -77,8 +85,6 @@ class DataFusionExprStringNamespace(SQLExprStringNamespace["DataFusionExpr"]):
 
         # `to_timestamp` needs a date: parse against the epoch day and cast down.
         # `concat` turns a null into "1970-01-01 " (parse error), hence the null branch
-        import pyarrow as pa
-
         def func(expr: Expr) -> Expr:
             parsed = F.to_timestamp(F.concat(lit("1970-01-01 "), expr), lit(f"%Y-%m-%d {format}"))
             null = lit(None).cast(pa.timestamp("ns"))

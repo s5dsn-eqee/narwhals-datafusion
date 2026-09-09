@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 from typing import TYPE_CHECKING
 
 import pyarrow as pa
@@ -22,6 +23,7 @@ from narwhals_datafusion.utils import lit
 if TYPE_CHECKING:
     from narwhals_datafusion.expr import DataFusionExpr
 
+# narwhals interval unit -> `date_trunc` precision
 UNITS_DICT = {
     "y": "year",
     "q": "quarter",
@@ -34,6 +36,10 @@ UNITS_DICT = {
     "us": "microsecond",
 }
 
+# month-based units, for `date_bin` strides
+MONTHS_PER_UNIT = {"y": 12, "q": 3, "mo": 1}
+
+# sub-day units in nanoseconds, for `date_bin` strides
 NS_PER_UNIT = {
     "h": NS_PER_MINUTE * SECONDS_PER_MINUTE,
     "m": NS_PER_MINUTE,
@@ -45,6 +51,8 @@ NS_PER_UNIT = {
 
 
 class DataFusionExprDateTimeNamespace(SQLExprDateTimeNamesSpace["DataFusionExpr"]):
+    """``Expr.dt``; most methods come from ``SQLExprDateTimeNamesSpace``."""
+
     def millisecond(self) -> DataFusionExpr:
         # `date_part('millisecond')` includes whole seconds
         return self.compliant._with_elementwise(
@@ -80,34 +88,29 @@ class DataFusionExprDateTimeNamespace(SQLExprDateTimeNamesSpace["DataFusionExpr"
         return self.compliant._with_elementwise(lambda expr: expr.cast(pa.date32()))
 
     def truncate(self, every: str) -> DataFusionExpr:
-        import datetime as dt
-
+        """Floor to a multiple of a unit, ``every`` such as ``"15m"``, anchored at the epoch."""
         interval = Interval.parse(every)
-        multiple, unit = interval.multiple, interval.unit
-        if multiple == 1 and unit in UNITS_DICT:
-            precision = UNITS_DICT[unit]
-            return self.compliant._with_elementwise(lambda expr: F.date_trunc(precision, expr))
+        # a stride is (months, days, nanoseconds), the parts of an Arrow interval
+        match (interval.multiple, interval.unit):
+            case (1, unit) if unit in UNITS_DICT:
+                precision = UNITS_DICT[unit]
+                return self.compliant._with_elementwise(lambda expr: F.date_trunc(precision, expr))
+            case (multiple, unit) if unit in MONTHS_PER_UNIT:
+                stride = (multiple * MONTHS_PER_UNIT[unit], 0, 0)
+            case (multiple, "d"):
+                stride = (0, multiple, 0)
+            case (multiple, unit) if unit in NS_PER_UNIT:
+                stride = (0, 0, multiple * NS_PER_UNIT[unit])
+            case _:  # pragma: no cover
+                msg = f"Truncating by {every!r} is not supported for the DataFusion backend."
+                raise NotImplementedError(msg)
         # multiples: `date_bin` anchored at the epoch, polars semantics
-        months, days, nanos = 0, 0, 0
-        if unit == "y":
-            # narwhals' `Interval.parse` rejects year multiples other than 1 today
-            months = 12 * multiple
-        elif unit == "q":
-            months = 3 * multiple
-        elif unit == "mo":
-            months = multiple
-        elif unit == "d":
-            days = multiple
-        elif unit in NS_PER_UNIT:
-            nanos = multiple * NS_PER_UNIT[unit]
-        else:  # pragma: no cover
-            msg = f"Truncating by {every!r} is not supported for the DataFusion backend."
-            raise NotImplementedError(msg)
-        stride = lit(pa.scalar((months, days, nanos), type=pa.month_day_nano_interval()))
+        stride_lit = lit(pa.scalar(stride, type=pa.month_day_nano_interval()))
         origin = lit(pa.scalar(dt.datetime(1970, 1, 1), type=pa.timestamp("us")))
-        return self.compliant._with_elementwise(lambda expr: F.date_bin(stride, expr, origin))
+        return self.compliant._with_elementwise(lambda expr: F.date_bin(stride_lit, expr, origin))
 
     def replace_time_zone(self, time_zone: str | None) -> DataFusionExpr:
+        """Attach or drop a zone, keeping the wall time; only ``None`` and ``"UTC"``."""
         if time_zone is None:
             return self.compliant._with_elementwise(lambda expr: expr.cast(pa.timestamp("us")))
         if time_zone == "UTC":
@@ -119,6 +122,7 @@ class DataFusionExprDateTimeNamespace(SQLExprDateTimeNamesSpace["DataFusionExpr"
         raise NotImplementedError(msg)
 
     def convert_time_zone(self, time_zone: str) -> DataFusionExpr:
+        """Change the zone, keeping the instant."""
         return self.compliant._with_elementwise(
             lambda expr: expr.cast(pa.timestamp("us", tz=time_zone))
         )

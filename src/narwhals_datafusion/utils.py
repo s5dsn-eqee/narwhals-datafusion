@@ -16,6 +16,7 @@ from narwhals._arrow.utils import (
 from narwhals._arrow.utils import (
     native_to_narwhals_dtype as _arrow_native_to_narwhals_dtype,
 )
+from narwhals._expression_parsing import evaluate_output_names_and_aliases
 from narwhals._utils import extend_bool
 from narwhals.exceptions import ColumnNotFoundError, DuplicateError
 
@@ -41,6 +42,7 @@ __all__ = [
     "lit",
     "narwhals_to_native_dtype",
     "native_to_narwhals_dtype",
+    "quote",
     "session_context",
     "sort_expr",
     "when",
@@ -49,6 +51,7 @@ __all__ = [
 
 
 def _parse_version(version: str) -> tuple[int, ...]:
+    """Leading numeric components of ``version``, at most three."""
     parts = []
     for part in version.split(".")[:3]:
         digits = re.match(r"\d+", part)
@@ -61,19 +64,24 @@ def _parse_version(version: str) -> tuple[int, ...]:
 BACKEND_VERSION: tuple[int, ...] = _parse_version(datafusion.__version__)
 
 
-def col(name: str) -> Expr:
-    # `datafusion.col` parses a SQL identifier (lower-cases, rejects keywords):
-    # quote and escape so any name round-trips
+def quote(name: str) -> str:
+    """Quote ``name`` for any DataFusion API that takes a column name."""
+    # column names are parsed as SQL identifiers: lower-cased unless quoted
     escaped = name.replace('"', '""')
-    return datafusion.col(f'"{escaped}"')
+    return f'"{escaped}"'
+
+
+def col(name: str) -> Expr:
+    """Reference the column called exactly ``name``."""
+    return datafusion.col(quote(name))
 
 
 @lru_cache(maxsize=1)
 def session_context() -> SessionContext:
-    """Default `SessionContext` used for IO entry points (`scan_csv`, `scan_parquet`).
+    """Default ``SessionContext`` for ``scan_csv`` and ``scan_parquet``.
 
-    Frames passed in by users keep their own context; DataFusion happily combines
-    frames from different contexts, so a single shared default is safe.
+    User frames keep their own context; DataFusion combines frames from
+    different contexts, so one shared default is safe.
     """
     from datafusion import SessionContext
 
@@ -81,19 +89,26 @@ def session_context() -> SessionContext:
 
 
 def native_to_narwhals_dtype(dtype: pa.DataType, version: Version) -> DType:
-    # DataFusion schemas are Arrow schemas: reuse the Arrow backend's mapping
+    """Map an Arrow type to a narwhals dtype.
+
+    DataFusion schemas are Arrow schemas, so both directions reuse the
+    Arrow backend's mapping.
+    """
     return _arrow_native_to_narwhals_dtype(dtype, version)
 
 
 def narwhals_to_native_dtype(dtype: IntoDType, version: Version) -> pa.DataType:
+    """Map a narwhals dtype to an Arrow type."""
     return _arrow_narwhals_to_native_dtype(dtype, version)
 
 
 def _ensure_expr(value: Any) -> Expr:
+    """Wrap a Python value in ``lit``; pass an ``Expr`` through."""
     return value if isinstance(value, Expr) else lit(value)
 
 
 def when(condition: Expr, value: Expr, otherwise: Expr | None = None) -> Expr:
+    """``CASE WHEN condition THEN value``, with ``ELSE otherwise`` if given."""
     builder = F.when(condition, value)
     return builder.end() if otherwise is None else builder.otherwise(otherwise)
 
@@ -128,6 +143,8 @@ def _date_part(part: str) -> Callable[[Any], Expr]:
     return fn
 
 
+# narwhals function names that `datafusion.functions` spells or behaves
+# differently; the callables receive raw Python values
 FUNCTION_REMAP: dict[str, Callable[..., Expr]] = {
     "add": lambda a, b: _ensure_expr(a) + _ensure_expr(b),
     "and": lambda a, b: _ensure_expr(a) & _ensure_expr(b),
@@ -158,6 +175,7 @@ FUNCTION_REMAP: dict[str, Callable[..., Expr]] = {
 
 
 def function(name: str, *args: Any) -> Expr:
+    """Call the DataFusion function behind narwhals' SQL function ``name``."""
     if remapped := FUNCTION_REMAP.get(name):
         return remapped(*args)
     native = getattr(F, name)
@@ -167,6 +185,7 @@ def function(name: str, *args: Any) -> Expr:
 def sort_expr(
     into_expr: str | Expr, *, descending: bool = False, nulls_last: bool = False
 ) -> SortExpr:
+    """Sort key from a column name or expression."""
     expr = col(into_expr) if isinstance(into_expr, str) else into_expr
     return expr.sort(ascending=not descending, nulls_first=not nulls_last)
 
@@ -183,6 +202,12 @@ def window_expression(
     ignore_nulls: bool = False,
     frame_full: bool = False,
 ) -> Expr:
+    """Evaluate ``expr`` over a window.
+
+    ``rows_start``/``rows_end`` are narwhals row offsets; ``frame_full`` spans
+    the whole partition instead. ``ignore_nulls`` is set on the window, where
+    DataFusion honours it.
+    """
     partition = [col(part) if isinstance(part, str) else part for part in partition_by] or None
     flags = extend_bool(False, len(order_by))
     descending = descending or flags
@@ -193,16 +218,17 @@ def window_expression(
     ] or None
 
     # narwhals bounds are offsets (negative = preceding); DataFusion takes magnitudes
-    if frame_full:
-        frame = WindowFrame("rows", None, None)
-    elif rows_start is not None and rows_end is not None:
-        frame = WindowFrame("rows", -rows_start, rows_end)
-    elif rows_end is not None:
-        frame = WindowFrame("rows", None, rows_end)
-    elif rows_start is not None:
-        frame = WindowFrame("rows", -rows_start, None)
-    else:
-        frame = None
+    match (frame_full, rows_start, rows_end):
+        case (True, _, _):
+            frame = WindowFrame("rows", None, None)
+        case (_, int(start), int(end)):
+            frame = WindowFrame("rows", -start, end)
+        case (_, None, int(end)):
+            frame = WindowFrame("rows", None, end)
+        case (_, int(start), None):
+            frame = WindowFrame("rows", -start, None)
+        case _:
+            frame = None
 
     null_treatment = None
     if ignore_nulls:
@@ -222,35 +248,34 @@ def window_expression(
 def evaluate_exprs_and_aliases(
     df: DataFusionLazyFrame, /, *exprs: DataFusionExpr
 ) -> list[tuple[str, Expr]]:
-    native_results: list[tuple[str, Expr]] = []
+    """Evaluate ``exprs`` against ``df`` as ``(output name, native expr)`` pairs.
+
+    One narwhals expression can expand to several columns, e.g. ``nw.col("a", "b")``.
+    """
+    pairs: list[tuple[str, Expr]] = []
     for expr in exprs:
-        native_series_list = expr(df)
-        output_names = expr._evaluate_output_names(df)
-        if expr._alias_output_names is not None:
-            output_names = expr._alias_output_names(output_names)
-        if len(output_names) != len(native_series_list):  # pragma: no cover
-            msg = (
-                f"Internal error: got output names {output_names}, "
-                f"but only got {len(native_series_list)} results"
-            )
-            raise AssertionError(msg)
-        native_results.extend(zip(output_names, native_series_list, strict=True))
-    return native_results
+        _, aliases = evaluate_output_names_and_aliases(expr, df, [])
+        pairs.extend(zip(aliases, expr(df), strict=True))
+    return pairs
 
 
 def catch_datafusion_exception(
     exception: Exception, frame: CompliantLazyFrameAny, /
 ) -> ColumnNotFoundError | DuplicateError | Exception:
+    """Translate a DataFusion error into its narwhals exception, else return it as is."""
     message = str(exception)
-    if match := re.search(r'No field named ("(?:[^"]|"")*"|\S+?)\.', message):
-        missing = match.group(1)
-        if missing.startswith('"') and missing.endswith('"'):
-            missing = missing[1:-1].replace('""', '"')
-        return ColumnNotFoundError.from_missing_and_available_column_names([missing], frame.columns)
-    if "Schema error: No field named" in message:  # pragma: no cover
-        return ColumnNotFoundError.from_available_column_names(available_columns=frame.columns)
-    if "Projections require unique expression names" in message:
-        return DuplicateError(
-            f"Expected unique column names, got duplicates in projection.\n\n{message}"
-        )
-    return exception
+    match re.search(r'No field named (?:"((?:[^"]|"")*)"|(\S+?))\.', message):
+        case re.Match() as found:
+            quoted, bare = found.groups()
+            missing = bare if quoted is None else quoted.replace('""', '"')
+            return ColumnNotFoundError.from_missing_and_available_column_names(
+                [missing], frame.columns
+            )
+        case None if "Schema error: No field named" in message:  # pragma: no cover
+            return ColumnNotFoundError.from_available_column_names(available_columns=frame.columns)
+        case None if "Projections require unique expression names" in message:
+            return DuplicateError(
+                f"Expected unique column names, got duplicates in projection.\n\n{message}"
+            )
+        case _:
+            return exception

@@ -26,6 +26,4 @@ tmp/
 profile_default/
 ipython_config.py
 *.ipynb
-
-# Local-only docs (kept out of git and any publishing)
-docs/
+!docs/*.ipynb

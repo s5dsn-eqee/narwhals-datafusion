@@ -51,7 +51,7 @@ exclude = [
   "docs", "narwhals", "tests", "tmp", ".github", ".hypothesis", ".gitmodules",
   "run_tests.py", "update_run_tests.py", "uv.lock",
   ".ai", ".claude", "AGENTS.md", "CLAUDE.md", "CONTRIBUTING.md", ".pre-commit-config.yaml",
-  "test_plugin_protocol.py",
+  "test_plugin_protocol.py", "docstring_template.mustache",
 ]
 
 [dependency-groups]

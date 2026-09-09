@@ -34,6 +34,8 @@ list.
 
 1. Read [`.ai/skills/datafusion-workarounds/SKILL.md`](.ai/skills/datafusion-workarounds/SKILL.md).
 2. Add a regression test to `tests/test_smoke.py`.
+   Docstrings: PEP 257, one imperative line; a body only when the signature
+   leaves a question (`docstring_template.mustache` for autoDocstring).
 3. `uv run --group tests python update_run_tests.py` and review the diff to
    `run_tests.py`. Tests that pass locally but fail only in CI go in
    `ALWAYS_DESELECTED`; tests that need the extra go in `TESTS_NEED_EXTRA`.

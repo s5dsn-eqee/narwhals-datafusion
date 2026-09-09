@@ -18,10 +18,13 @@ if TYPE_CHECKING:
 class DataFusionExprListNamespace(
     LazyExprNamespace["DataFusionExpr"], ListNamespace["DataFusionExpr"]
 ):
+    """``Expr.list``, one ``array_*`` function per method."""
+
     def len(self) -> DataFusionExpr:
         return self.compliant._with_elementwise(F.array_length)
 
     def unique(self, *, maintain_order: bool) -> DataFusionExpr:
+        """Distinct elements; ``array_distinct`` gives no order, so ``maintain_order`` raises."""
         if maintain_order:
             msg = "`maintain_order=True` is not supported for the DataFusion backend."
             raise NotImplementedError(msg)
@@ -31,6 +34,7 @@ class DataFusionExprListNamespace(
         return self.compliant._with_elementwise(lambda expr: F.array_has(expr, lit(item)))
 
     def get(self, index: int) -> DataFusionExpr:
+        """Element at zero-based ``index``; ``array_element`` counts from one."""
         return self.compliant._with_elementwise(lambda expr: F.array_element(expr, lit(index + 1)))
 
     def min(self) -> DataFusionExpr:

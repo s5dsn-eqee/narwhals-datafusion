@@ -46,6 +46,13 @@ before a commit.
 - **Prose is minimal.** A comment, doc line or skill sentence exists only if a
   reader needs it to act; one reason per rule, no justification paragraphs, no
   comparisons to other projects, no judgement of upstream.
+- **Native first.** Before writing logic in Python, probe datafusion for a
+  call that does it (`union_by_name`, `join_on`, `nullif`, `with_column`) and
+  verify it in a scratch script; `match`/`case` for a branch chain over a small
+  tuple or enum; a lookup (`find_spec`, `in`) over `try`/`except`.
+- **Docstrings**: PEP 257, one imperative line; a body only when the signature
+  leaves a question; no Args/Returns sections. `docstring_template.mustache`
+  configures autoDocstring.
 - **Commit messages**: one line, about ten words, imperative, no body, no
   trailers.
 
@@ -58,11 +65,15 @@ src/narwhals_datafusion/
   dataframe.py      DataFusionLazyFrame: select/join/unique/explode/unpivot/...
   expr.py           DataFusionExpr: operators, aggregates, windows, casts
   expr_{str,dt,list,struct}.py   sub-namespaces
-  utils.py          col() quoting, FUNCTION_REMAP, window_expression, errors
+  group_by.py       DataFusionGroupBy: the native aggregate call
+  selectors.py      DataFusionSelector: nw.selectors
+  utils.py          col()/quote(), FUNCTION_REMAP, window_expression, errors
   extra_functions.py  mode/skew/kurtosis via the FFI shim (optional extra)
   testing.py        pytest plugin feeding narwhals' suite a DataFusion frame
 tests/              this package's tests
+docs/playground.ipynb   tour of the API and the extra
 run_tests.py        narwhals-suite runner with TESTS_THAT_NEED_FIX
 update_run_tests.py regenerates TESTS_THAT_NEED_FIX
+docstring_template.mustache   autoDocstring template
 narwhals/           submodule, tested narwhals release
 ```

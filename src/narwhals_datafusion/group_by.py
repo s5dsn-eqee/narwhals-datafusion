@@ -16,6 +16,12 @@ if TYPE_CHECKING:
 
 
 class DataFusionGroupBy(SQLGroupBy["DataFusionLazyFrame", "DataFusionExpr", "Expr"]):
+    """``df.group_by(...)``: holds the frame and keys until ``agg``.
+
+    Narwhals parses the keys and expands the aggregate expressions; this class
+    only issues the native ``aggregate`` call.
+    """
+
     def __init__(
         self,
         df: DataFusionLazyFrame,
@@ -24,10 +30,12 @@ class DataFusionGroupBy(SQLGroupBy["DataFusionLazyFrame", "DataFusionExpr", "Exp
         *,
         drop_null_keys: bool,
     ) -> None:
+        # expression keys become temporary columns; `agg` restores their names
         frame, self._keys, self._output_key_names = self._parse_keys(df, keys=keys)
         self._compliant_frame = frame.drop_nulls(self._keys) if drop_null_keys else frame
 
     def agg(self, *exprs: DataFusionExpr) -> DataFusionLazyFrame:
+        """Aggregate ``exprs`` per key group."""
         agg_columns = list(self._evaluate_exprs(exprs))
         native = self.compliant.native.aggregate([col(key) for key in self._keys], agg_columns)
         return self.compliant._with_native(native).rename(
