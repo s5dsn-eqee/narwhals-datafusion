@@ -54,6 +54,8 @@ if TYPE_CHECKING:
 
 
 class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
+    """A narwhals expression that evaluates to DataFusion ``Expr`` objects."""
+
     _implementation = Implementation.UNKNOWN
 
     def __init__(
@@ -81,6 +83,7 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
 
         return DataFusionNamespace(version=self._version)
 
+    # the `SQLExpr` hooks; `_alias_native` is further down
     def _count_star(self) -> Expr:
         return F.count_star()
 
@@ -195,7 +198,8 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
         return self._with_callable(f, window_f)
 
     def broadcast(self) -> Self:
-        return self.over([lit(1)], [])
+        """Turn an aggregate into a per-row value: ``sum(a) OVER ()``."""
+        return self.over([], [])
 
     @classmethod
     def from_column_names(
@@ -205,6 +209,8 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
         *,
         context: _LimitedContext,
     ) -> Self:
+        """Select the columns ``evaluate_column_names`` yields for a frame."""
+
         def func(df: DataFusionLazyFrame) -> list[Expr]:
             return [col(name) for name in evaluate_column_names(df)]
 
@@ -217,6 +223,8 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
 
     @classmethod
     def from_column_indices(cls, *column_indices: int, context: _LimitedContext) -> Self:
+        """Select columns by position."""
+
         def func(df: DataFusionLazyFrame) -> list[Expr]:
             columns = df.columns
             return [col(columns[i]) for i in column_indices]
@@ -304,6 +312,7 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
     def fill_null(
         self, value: Self | None, strategy: FillNullStrategy | None, limit: int | None
     ) -> Self:
+        """Replace nulls with ``value``, or with the nearest non-null along ``strategy``."""
         if strategy is not None:
             if limit is not None:
                 # first/last_value over a bounded frame need `retract_batch`, not implemented
@@ -362,19 +371,23 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
         *,
         return_dtype: IntoDType | None,
     ) -> Self:
+        """Map each value in ``old`` to its ``new``; anything else becomes ``default``."""
         if default is NO_DEFAULT:
             msg = "`replace_strict` requires an explicit `default` for the DataFusion backend."
             raise ValueError(msg)
 
         def func(df: DataFusionLazyFrame) -> list[Expr]:
             default_col = df._evaluate_single_output_expr(default)
+            pairs = list(zip(old, new, strict=True))
 
             results = []
             for expr in self(df):
-                pairs = iter(zip(old, new, strict=True))
-                first_old, first_new = next(pairs)
+                if not pairs:
+                    results.append(default_col)
+                    continue
+                (first_old, first_new), *rest = pairs
                 builder = F.when(expr == lit(first_old), lit(first_new))
-                for old_value, new_value in pairs:
+                for old_value, new_value in rest:
                     builder = builder.when(expr == lit(old_value), lit(new_value))
                 results.append(builder.otherwise(default_col))
 
@@ -409,6 +422,7 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
 
     # no built-in mode/skewness/kurtosis in 54; the `extra-functions` shim provides them
     def _extra_udaf(self, function_name: str, operation: str) -> Any:
+        """The shim's ``function_name``; without the shim, raise naming ``operation``."""
         from narwhals_datafusion.extra_functions import INSTALL_HINT, extra_udaf
 
         fn = extra_udaf(function_name)

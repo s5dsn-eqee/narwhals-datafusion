@@ -7,11 +7,9 @@ from typing import TYPE_CHECKING, Any
 
 import pyarrow as pa
 from datafusion import functions as F
-from narwhals._compliant.namespace import AlignDiagonal
 from narwhals._expression_parsing import (
     combine_alias_output_names,
     combine_evaluate_output_names,
-    evaluate_output_names_and_aliases,
 )
 from narwhals._sql.namespace import SQLNamespace
 from narwhals._utils import Implementation, validate_separators
@@ -21,6 +19,7 @@ from narwhals_datafusion.expr import DataFusionExpr
 from narwhals_datafusion.selectors import DataFusionSelectorNamespace
 from narwhals_datafusion.utils import (
     BACKEND_VERSION,
+    evaluate_exprs_and_aliases,
     function,
     lit,
     narwhals_to_native_dtype,
@@ -48,8 +47,9 @@ if TYPE_CHECKING:
 class DataFusionNamespace(
     # same `columns`-less native frame caveat as dataframe.py
     SQLNamespace[DataFusionLazyFrame, DataFusionExpr, "datafusion.DataFrame", "Expr"],  # pyright: ignore[reportInvalidTypeArguments]
-    AlignDiagonal[DataFusionLazyFrame, DataFusionExpr],
 ):
+    """Top-level namespace: literals, IO, ``concat`` and the horizontal functions."""
+
     _implementation: Implementation = Implementation.UNKNOWN
 
     def __init__(self, *, version: Version) -> None:
@@ -71,19 +71,24 @@ class DataFusionNamespace(
     def _lazyframe(self) -> type[DataFusionLazyFrame]:
         return DataFusionLazyFrame
 
-    # unreachable via `nw.scan_*` until narwhals' `Implementation.from_backend`
-    # gets a plugin path (2.25 asserts on UNKNOWN); kept for completeness
     def scan_csv(
         self, source: NormalizedPath, *, separator: str = ",", **kwds: Any
     ) -> DataFusionLazyFrame:
+        """Read a CSV on the default ``SessionContext``.
+
+        Unreachable via ``nw.scan_csv`` until narwhals routes
+        ``Implementation.UNKNOWN`` to plugins (2.25 asserts on it).
+        """
         validate_separators(separator, ("delimiter", "delim", "sep"), kwds)
         native = session_context().read_csv(source, delimiter=separator, **kwds)
         return self._lazyframe.from_native(native, context=self)
 
     def scan_parquet(self, source: NormalizedPath, **kwds: Any) -> DataFusionLazyFrame:
+        """Read a Parquet file on the default ``SessionContext``; same caveat as ``scan_csv``."""
         native = session_context().read_parquet(source, **kwds)
         return self._lazyframe.from_native(native, context=self)
 
+    # the four `SQLNamespace` primitives; everything else in `_sql` builds on them
     def _function(self, name: str, *args: Expr | PythonLiteral) -> Expr:  # type: ignore[override]
         return function(name, *args)
 
@@ -99,29 +104,30 @@ class DataFusionNamespace(
     def concat(
         self, items: Iterable[DataFusionLazyFrame], *, how: ConcatMethod
     ) -> DataFusionLazyFrame:
+        """Stack frames vertically; ``diagonal`` fills missing columns with nulls."""
         items = list(items)
         first = items[0]
-        if how == "diagonal":
-            items = list(self.align_diagonal(items))
-            first = items[0]
-        else:
+        if how == "vertical":
             schema = first.schema
             if not all(item.schema == schema for item in items[1:]):
                 msg = "inputs should all have the same schema"
                 raise TypeError(msg)
-            # `union` is positional: align column order
-            columns = first.columns
-            items = [item.simple_select(*columns) for item in items]
-        native = reduce(lambda left, right: left.union(right), (item.native for item in items))
+        # `union_by_name` matches columns by name and fills missing ones with null
+        native = reduce(
+            lambda left, right: left.union_by_name(right), (item.native for item in items)
+        )
         return first._with_native(native)
 
     def concat_str(
         self, *exprs: DataFusionExpr, separator: str, ignore_nulls: bool
     ) -> DataFusionExpr:
+        """Join ``exprs`` as strings; a null makes the row null unless ``ignore_nulls``."""
+
         def func(df: DataFusionLazyFrame) -> list[Expr]:
-            cols = [expr.cast(pa.string()) for expr in chain.from_iterable(e(df) for e in exprs)]
+            cols = list(chain.from_iterable(e(df) for e in exprs))
             if ignore_nulls:
                 return [F.concat_ws(separator, *cols)]
+            # `concat_ws` skips nulls; narwhals wants the whole row null
             null_mask = reduce(operator.or_, (expr.is_null() for expr in cols))
             return [when(~null_mask, F.concat_ws(separator, *cols))]
 
@@ -133,6 +139,8 @@ class DataFusionNamespace(
         )
 
     def mean_horizontal(self, *exprs: DataFusionExpr) -> DataFusionExpr:
+        """Row-wise mean of ``exprs``, ignoring nulls."""
+
         def func(cols: Iterable[Expr]) -> Expr:
             cols = tuple(cols)
             total = reduce(operator.add, (F.coalesce(col, lit(0)) for col in cols))
@@ -143,6 +151,8 @@ class DataFusionNamespace(
         return self._expr._from_elementwise_horizontal_op(func, *exprs)
 
     def lit(self, value: PythonLiteral, dtype: IntoDType | None) -> DataFusionExpr:
+        """A literal column named ``literal``, cast to ``dtype`` if given."""
+
         def func(_df: DataFusionLazyFrame) -> list[Expr]:
             if dtype is not None:
                 target = narwhals_to_native_dtype(dtype, self._version)
@@ -161,6 +171,8 @@ class DataFusionNamespace(
         )
 
     def len(self) -> DataFusionExpr:
+        """Row count, named ``len``."""
+
         def func(_df: DataFusionLazyFrame) -> list[Expr]:
             return [F.count_star()]
 
@@ -174,6 +186,7 @@ class DataFusionNamespace(
     def corr(
         self, a: DataFusionExpr, b: DataFusionExpr, *, method: CorrelationMethod
     ) -> DataFusionExpr:
+        """Pearson correlation of ``a`` and ``b``."""
         if method != "pearson":
             msg = "Only 'pearson' correlation is supported for the DataFusion backend."
             raise NotImplementedError(msg)
@@ -191,6 +204,8 @@ class DataFusionNamespace(
         )
 
     def cov(self, a: DataFusionExpr, b: DataFusionExpr, *, ddof: int) -> DataFusionExpr:
+        """Covariance of ``a`` and ``b`` with ``ddof`` delta degrees of freedom."""
+
         def _cov(a_: Expr, b_: Expr, wrap: Callable[[Expr], Expr]) -> Expr:
             # `over` accepts only aggregate/window functions: `wrap` windows each
             # aggregate, the arithmetic happens outside
@@ -225,15 +240,10 @@ class DataFusionNamespace(
         )
 
     def struct(self, *exprs: DataFusionExpr) -> DataFusionExpr:
+        """Pack ``exprs`` into one struct column, fields named by their aliases."""
+
         def func(df: DataFusionLazyFrame) -> list[Expr]:
-            name_pairs = [
-                (alias, native_expr)
-                for expr in exprs
-                for native_expr, _, alias in zip(
-                    expr(df), *evaluate_output_names_and_aliases(expr, df, []), strict=False
-                )
-            ]
-            return [F.named_struct(name_pairs)]
+            return [F.named_struct(evaluate_exprs_and_aliases(df, *exprs))]
 
         return self._expr(
             call=func,
@@ -243,9 +253,10 @@ class DataFusionNamespace(
         )
 
     def list(self, *exprs: DataFusionExpr) -> DataFusionExpr:
+        """Pack ``exprs`` into one list column."""
+
         def func(df: DataFusionLazyFrame) -> list[Expr]:
-            cols = [native_expr for expr in exprs for native_expr in expr(df)]
-            return [F.make_array(*cols)]
+            return [F.make_array(*chain.from_iterable(expr(df) for expr in exprs))]
 
         return self._expr(
             call=func,

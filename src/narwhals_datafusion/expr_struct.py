@@ -13,5 +13,8 @@ if TYPE_CHECKING:
 class DataFusionExprStructNamespace(
     LazyExprNamespace["DataFusionExpr"], StructNamespace["DataFusionExpr"]
 ):
+    """``Expr.struct``."""
+
     def field(self, name: str) -> DataFusionExpr:
+        """The struct field ``name``, as a column called ``name``."""
         return self.compliant._with_elementwise(lambda expr: F.get_field(expr, name)).alias(name)

@@ -25,6 +25,7 @@ from narwhals_datafusion.utils import (
     evaluate_exprs_and_aliases,
     lit,
     native_to_narwhals_dtype,
+    quote,
     sort_expr,
     window_expression,
 )
@@ -54,6 +55,8 @@ if TYPE_CHECKING:
 class DataFusionLazyFrame(
     SQLLazyFrame["DataFusionExpr", "datafusion.DataFrame", "LazyFrame[datafusion.DataFrame]"]  # pyright: ignore[reportInvalidTypeArguments]
 ):
+    """A narwhals lazy frame over ``datafusion.DataFrame``; every verb returns a new plan."""
+
     _implementation = Implementation.UNKNOWN
 
     def __init__(self, df: datafusion.DataFrame, *, version: Version) -> None:
@@ -96,6 +99,7 @@ class DataFusionLazyFrame(
         for name in self.columns:
             yield col(name)
 
+    # schema and columns are cached: the native frame is immutable
     @property
     def _native_schema(self) -> pa.Schema:
         if self._cached_native_schema is None:
@@ -123,38 +127,38 @@ class DataFusionLazyFrame(
         return self.__class__(df, version=self._version)
 
     def collect(self, backend: _EagerAllowedImpl | None, **kwargs: Any) -> CompliantDataFrameAny:
-        if backend is None or backend is Implementation.PYARROW:
-            from narwhals._arrow.dataframe import ArrowDataFrame
+        """Execute the plan into an eager frame: pyarrow by default, pandas or polars."""
+        match backend:
+            case None | Implementation.PYARROW:
+                from narwhals._arrow.dataframe import ArrowDataFrame
 
-            return ArrowDataFrame(
-                self.native.to_arrow_table(),
-                validate_backend_version=True,
-                version=self._version,
-                validate_column_names=True,
-            )
+                return ArrowDataFrame(
+                    self.native.to_arrow_table(),
+                    validate_backend_version=True,
+                    version=self._version,
+                    validate_column_names=True,
+                )
+            case Implementation.PANDAS:
+                from narwhals._pandas_like.dataframe import PandasLikeDataFrame
 
-        if backend is Implementation.PANDAS:
-            from narwhals._pandas_like.dataframe import PandasLikeDataFrame
+                return PandasLikeDataFrame(
+                    self.native.to_pandas(),
+                    implementation=Implementation.PANDAS,
+                    validate_backend_version=True,
+                    version=self._version,
+                    validate_column_names=True,
+                )
+            case Implementation.POLARS:
+                from narwhals._polars.dataframe import PolarsDataFrame
 
-            return PandasLikeDataFrame(
-                self.native.to_pandas(),
-                implementation=Implementation.PANDAS,
-                validate_backend_version=True,
-                version=self._version,
-                validate_column_names=True,
-            )
-
-        if backend is Implementation.POLARS:
-            from narwhals._polars.dataframe import PolarsDataFrame
-
-            return PolarsDataFrame(
-                self.native.to_polars(),
-                validate_backend_version=True,
-                version=self._version,
-            )
-
-        msg = f"Unsupported `backend` value: {backend}"  # pragma: no cover
-        raise ValueError(msg)  # pragma: no cover
+                return PolarsDataFrame(
+                    self.native.to_polars(),
+                    validate_backend_version=True,
+                    version=self._version,
+                )
+            case _:  # pragma: no cover
+                msg = f"Unsupported `backend` value: {backend}"
+                raise ValueError(msg)
 
     def head(self, n: int) -> Self:
         return self._with_native(self.native.limit(n))
@@ -163,6 +167,7 @@ class DataFusionLazyFrame(
         return self._with_native(self.native.select(*(col(c) for c in column_names)))
 
     def aggregate(self, *exprs: DataFusionExpr) -> Self:
+        """Reduce the whole frame to one row of aggregates."""
         selection = [value.alias(name) for name, value in evaluate_exprs_and_aliases(self, *exprs)]
         try:
             return self._with_native(self.native.aggregate([], selection))
@@ -177,6 +182,7 @@ class DataFusionLazyFrame(
             raise catch_datafusion_exception(e, self) from None
 
     def with_columns(self, *exprs: DataFusionExpr) -> Self:
+        """Add or replace columns in place; new ones go last."""
         new_columns_map = dict(evaluate_exprs_and_aliases(self, *exprs))
         result = [
             new_columns_map.pop(name).alias(name) if name in new_columns_map else col(name)
@@ -230,6 +236,7 @@ class DataFusionLazyFrame(
         return self._with_native(self.native.sort(*keys))
 
     def top_k(self, k: int, *, by: Iterable[str], reverse: bool | Sequence[bool]) -> Self:
+        """The ``k`` rows with the largest ``by`` values; ``reverse`` takes the smallest."""
         by = list(by)
         if isinstance(reverse, bool):
             descending = extend_bool(not reverse, len(by))
@@ -254,6 +261,10 @@ class DataFusionLazyFrame(
         keep: UniqueKeepStrategy,
         order_by: Sequence[str] | None,
     ) -> Self:
+        """One row per distinct ``subset``, chosen by ``keep`` and ``order_by``.
+
+        ``keep="none"`` drops every group of two or more rows instead.
+        """
         subset_ = subset or self.columns
         if error := self._check_columns_exist(subset_):
             raise error
@@ -287,66 +298,39 @@ class DataFusionLazyFrame(
         right_on: Sequence[str] | None,
         suffix: str,
     ) -> Self:
-        left_columns = self.columns
-        right_columns = other.columns
-
-        if how in ("semi", "anti"):  # tuple, so pyright narrows the literal
-            assert left_on is not None
-            assert right_on is not None
-            joined = self.native.join(
-                other.native,
-                left_on=list(left_on),
-                right_on=list(right_on),
-                how=how,
-            )
-            # semi/anti joins keep left columns only
-            return self._with_native(joined.select(*(col(c) for c in left_columns)))
+        """Join on ``left_on``/``right_on``; right columns that collide get ``suffix``."""
+        left_columns, right_columns = self.columns, other.columns
 
         # shared column names make the joined schema ambiguous: rename every
         # right-hand column to a temporary name, re-select with narwhals' suffix rules
+        all_columns = [*left_columns, *right_columns]
         tmp_names = {
-            name: generate_temporary_column_name(
-                8, [*left_columns, *right_columns], prefix=f"join_{i}_"
-            )
+            name: generate_temporary_column_name(8, all_columns, prefix=f"join_{i}_")
             for i, name in enumerate(right_columns)
         }
-        rhs = other.native.select(*(col(name).alias(tmp_names[name]) for name in right_columns))
+        rhs = other.native.select(*(col(name).alias(tmp) for name, tmp in tmp_names.items()))
+        keys = zip(left_on or (), right_on or (), strict=True)
+        on = [col(left) == col(tmp_names[right]) for left, right in keys] or [lit(True)]
+        joined = self.native.join_on(rhs, *on, how="inner" if how == "cross" else how)
+        if how in ("semi", "anti"):  # the engine keeps left columns only
+            return self._with_native(joined)
 
-        if how == "cross":
-            joined = self.native.join_on(rhs, lit(True), how="inner")
-        else:
-            assert left_on is not None
-            assert right_on is not None
-            joined = self.native.join(
-                rhs,
-                left_on=list(left_on),
-                right_on=[tmp_names[name] for name in right_on],
-                how=how,
-                coalesce_duplicate_keys=False,
-            )
-
-        selection = [col(name) for name in left_columns]
-        for name in right_columns:
-            in_left = name in left_columns
-            renamed = col(tmp_names[name])
-            if how == "full":
-                if in_left:
-                    selection.append(renamed.alias(f"{name}{suffix}"))
-                else:
-                    selection.append(renamed.alias(name))
-            elif right_on is not None and name in right_on:
-                continue  # key columns are kept from the left side only
-            elif in_left:
-                selection.append(renamed.alias(f"{name}{suffix}"))
-            else:
-                selection.append(renamed.alias(name))
-
+        # right keys are dropped, the left copy stands for both; `full` keeps them
+        dropped = set() if how == "full" else set(right_on or ())
+        selection = [col(name) for name in left_columns] + [
+            col(tmp).alias(f"{name}{suffix}" if name in left_columns else name)
+            for name, tmp in tmp_names.items()
+            if name not in dropped
+        ]
         try:
             return self._with_native(joined.select(*selection))
         except Exception as e:
             raise catch_datafusion_exception(e, self) from None
 
     def explode(self, columns: Sequence[str]) -> Self:
+        """One row per list element; an empty or null list gives one row with null."""
+        if error := self._check_columns_exist(columns):
+            raise error
         dtypes = self._version.dtypes
         schema = self.collect_schema()
         for name in columns:
@@ -363,24 +347,9 @@ class DataFusionLazyFrame(
             raise NotImplementedError(msg)
 
         name = columns[0]
-        original_columns = self.columns
-        inner_type = self._native_schema.field(name).type.value_type
-
-        # `unnest_columns` drops empty lists and keeps nulls only via
-        # `preserve_nulls`: route both through a literal-null branch and union
-        not_null_condition = col(name).is_not_null() & (F.array_length(col(name)) > lit(0))
-        non_null_rel = (
-            self.native.filter(not_null_condition)
-            .unnest_columns(name)
-            .select(*(col(c) for c in original_columns))
-        )
-        null_rel = self.native.filter(~not_null_condition).select(
-            *(
-                lit(None).cast(inner_type).alias(c) if c == name else col(c)
-                for c in original_columns
-            )
-        )
-        return self._with_native(non_null_rel.union(null_rel))
+        # `unnest_columns` drops empty lists; as nulls, `preserve_nulls` keeps them
+        emptied = self.native.with_column(name, F.nullif(col(name), F.make_array()))
+        return self._with_native(emptied.unnest_columns(quote(name), preserve_nulls=True))
 
     def unpivot(
         self,
@@ -389,51 +358,54 @@ class DataFusionLazyFrame(
         variable_name: str,
         value_name: str,
     ) -> Self:
-        index_ = [] if index is None else list(index)
+        """Melt the ``on`` columns into ``variable_name``/``value_name`` rows, keeping ``index``."""
+        index_ = list(index or ())
         on_ = [c for c in self.columns if c not in index_] if on is None else list(on)
+        index_cols = [col(c) for c in index_]
         if not on_:
-            # nothing to melt: index columns plus an empty variable/value pair
+            # nothing to melt: the index columns plus an empty variable/value pair
             empty = self.native.select(
-                *(col(c) for c in index_),
+                *index_cols,
                 lit(None).cast(pa.string()).alias(variable_name),
                 lit(None).alias(value_name),
             )
-            return self._with_native(empty.filter(lit(False)))
+            return self._with_native(empty.limit(0))
 
-        # `union` needs matching schemas: promote mixed numeric value columns first
-        schema = self._native_schema
-        value_types = {schema.field(name).type for name in on_}
-        target: pa.DataType | None = None
-        if len(value_types) > 1:
-            if all(pa.types.is_integer(tp) for tp in value_types):
-                target = pa.int64()
-            elif all(pa.types.is_integer(tp) or pa.types.is_floating(tp) for tp in value_types):
-                target = pa.float64()
-
-        def value_expr(name: str) -> Expr:
-            expr = col(name)
-            return expr.cast(target) if target is not None else expr
+        # `union` coerces values but reports the first input's type: cast the
+        # value columns to their polars supertype first
+        types = {self._native_schema.field(name).type for name in on_}
+        if len(types) == 1:
+            target = None
+        elif all(pa.types.is_integer(t) or pa.types.is_boolean(t) for t in types):
+            target = pa.int64()
+        elif all(pa.types.is_integer(t) or pa.types.is_floating(t) for t in types):
+            target = pa.float64()
+        else:
+            target = pa.string()
 
         # no native unpivot: one projection per value column, unioned
         frames = [
             self.native.select(
-                *(col(c) for c in index_),
+                *index_cols,
                 lit(name).alias(variable_name),
-                value_expr(name).alias(value_name),
+                (col(name) if target is None else col(name).cast(target)).alias(value_name),
             )
             for name in on_
         ]
-        native = reduce(lambda left, right: left.union(right), frames)
-        return self._with_native(native)
+        return self._with_native(reduce(lambda left, right: left.union(right), frames))
 
     def with_row_index(self, name: str, order_by: Sequence[str]) -> Self:
+        """Prepend a zero-based row number in ``order_by`` order."""
         if not order_by:
             msg = "Must pass `order_by` to `with_row_index` for the DataFusion backend"
             raise TypeError(msg)
-        expr = (window_expression(F.row_number(), order_by=order_by) - lit(1)).alias(name)
+        # `row_number` is UInt64; minus an Int64 literal coerces to Decimal
+        row_number = window_expression(F.row_number(), order_by=order_by).cast(pa.int64())
+        expr = (row_number - lit(1)).alias(name)
         return self._with_native(self.native.select(expr, *(col(c) for c in self.columns)))
 
     def sink_parquet(self, file: str | Path | BytesIO) -> None:
+        """Execute the plan and write the result to a Parquet file path."""
         if not isinstance(file, (str, Path)):
             # `write_parquet` takes a path; `str(buffer)` would write a file named after the repr
             msg = (

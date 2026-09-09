@@ -14,13 +14,15 @@ until the floor passes the affected release and note the version here.
 Grep first; every workaround carries a comment naming the engine behaviour:
 
 ```bash
-grep -rn "datafusion" src/narwhals_datafusion/*.py | grep -i "#"
+grep -rn "^\s*# " src/narwhals_datafusion/*.py
 ```
 
 ## Column names
 
 - `datafusion.col("x")` parses a SQL identifier: unquoted names are lower-cased,
   keywords rejected. Always use `utils.col()`, which quotes and escapes.
+- Native APIs taking a column *name* string (`unnest_columns`) parse it the
+  same way: pass `utils.quote(name)`. Joins use `join_on` with `col()` keys.
 - Engine errors embed the quoted name; `catch_datafusion_exception` in
   `utils.py` strips it before building `ColumnNotFoundError`. Wrap native
   calls that can fail on a missing column in the same `try/except ... raise
@@ -51,6 +53,8 @@ grep -rn "datafusion" src/narwhals_datafusion/*.py | grep -i "#"
   (strict xfail); do not work around it in Python.
 - `median` on strings, exact `quantile`, `product`: no engine support,
   `not_implemented()`. No approximate substitutes without an explicit decision.
+- No list aggregate (`array_sum`/`array_mean`/`array_median`) in 54:
+  `list.sum`/`mean`/`median` are `not_implemented()`.
 
 ## Windows
 
@@ -74,26 +78,29 @@ grep -rn "datafusion" src/narwhals_datafusion/*.py | grep -i "#"
 ## Joins
 
 - A column name on both sides gives an ambiguous-schema error. `dataframe.join`
-  renames every right-hand column to a temporary name, joins, then re-selects
-  with narwhals' suffix rules. Do not alias a single key instead.
-- Semi/anti joins keep left columns only; cross join is `join_on(rhs, lit(True))`.
+  renames every right-hand column to a temporary name, joins with `join_on`,
+  then re-selects with narwhals' suffix rules. Do not alias a single key instead.
+- Semi/anti joins keep left columns only (no re-select); cross join is
+  `join_on(rhs, lit(True))`.
 - `join_asof`: no engine support, `not_implemented()`.
 
 ## Frames
 
 - `unnest_columns` drops empty lists and needs `preserve_nulls` for null
-  lists; `explode` routes both through a literal-null branch and unions
-  positionally. Multi-column explode raises (element counts unverifiable).
-- No native unpivot: one projection per value column, unioned, after promoting
-  mixed int/float value columns to a common type (`union` needs equal schemas).
-- `union` is positional: `concat(how="vertical")` re-selects every frame in the
-  first frame's column order.
+  lists; `explode` turns empty lists into nulls first (`nullif`). Multi-column
+  explode raises (element counts unverifiable).
+- No native unpivot: one projection per value column, unioned. `union` coerces
+  values but reports the first input's type, so value columns are cast to
+  their polars supertype first (Int64, Float64, else string).
+- `union` is positional; `concat` uses `union_by_name`, which also fills
+  missing columns with null, so both modes share one path.
 - `union` output order is nondeterministic (one partition per input, coalesced
   as they arrive). Tests asserting order after `concat` without a sort live in
   `ALWAYS_DESELECTED` in `run_tests.py`.
 - `write_parquet` takes a path; a file object would be `str()`-ed into a
   filename. `sink_parquet` raises for non-path inputs.
-- `with_row_index` requires `order_by`.
+- `with_row_index` requires `order_by`. `row_number` is UInt64; minus an
+  Int64 literal coerces to Decimal, so cast to Int64 first.
 
 ## Dtypes and time
 

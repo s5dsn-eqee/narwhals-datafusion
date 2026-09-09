@@ -17,12 +17,14 @@ NATIVE_PACKAGE = "datafusion"
 
 
 def __narwhals_namespace__(version: Version) -> DataFusionNamespace:
+    """The backend's namespace for a narwhals API ``version``; narwhals calls this on load."""
     from narwhals_datafusion.namespace import DataFusionNamespace
 
     return DataFusionNamespace(version=version)
 
 
 def is_native(native_object: object) -> TypeIs[datafusion.DataFrame]:
+    """Whether ``nw.from_native`` should route ``native_object`` to this backend."""
     import datafusion
 
     return isinstance(native_object, datafusion.DataFrame)

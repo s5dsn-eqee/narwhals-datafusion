@@ -242,6 +242,14 @@ def test_unpivot() -> None:
     assert result == {"id": [1, 1], "variable": ["a", "b"], "value": [10, 20]}
 
 
+def test_unpivot_mixed_types() -> None:
+    # regression: `union` reported the first column's dtype while holding strings
+    native = SessionContext().from_arrow(pa.table({"id": [1], "a": [10], "b": ["x"]}))
+    result = nw.from_native(native).unpivot(on=["a", "b"], index=["id"]).sort("variable")
+    assert result.collect_schema()["value"] == nw.String
+    assert to_dict(result)["value"] == ["10", "x"]
+
+
 def test_unpivot_empty_on() -> None:
     native = SessionContext().from_arrow(pa.table({"id": [1]}))
     result = to_dict(nw.from_native(native).unpivot(on=[], index=["id"]))
@@ -264,8 +272,42 @@ def test_str_to_time_with_format() -> None:
 
 def test_with_row_index() -> None:
     lf = nw.from_native(df_native())
-    result = to_dict(lf.with_row_index("idx", order_by="c").sort("idx"))
-    assert result["idx"] == [0, 1, 2, 3]
+    result = lf.with_row_index("idx", order_by="c")
+    # regression: UInt64 minus an Int64 literal came back as Decimal
+    assert result.collect_schema()["idx"] == nw.Int64
+    assert to_dict(result.sort("idx"))["idx"] == [0, 1, 2, 3]
+
+
+def test_quoted_column_names() -> None:
+    # regression: join keys and `unnest_columns` were parsed as identifiers
+    name = "A.b"
+    left = nw.from_native(SessionContext().from_arrow(pa.table({name: [1, 2], "v": [10, 20]})))
+    right = nw.from_native(SessionContext().from_arrow(pa.table({name: [2, 3], "w": [200, 300]})))
+    assert to_dict(left.join(right, on=name, how="inner")) == {name: [2], "v": [20], "w": [200]}
+    assert to_dict(left.join(right, on=name, how="semi")) == {name: [2], "v": [20]}
+    assert to_dict(left.join(right, on=name, how="anti")) == {name: [1], "v": [10]}
+    assert to_dict(left.join(right, on=name, how="full").sort("v", nulls_last=True)) == {
+        name: [1, 2, None],
+        "v": [10, 20, None],
+        f"{name}_right": [None, 2, 3],
+        "w": [None, 200, 300],
+    }
+    lists = nw.from_native(SessionContext().from_arrow(pa.table({"i": [1, 2], name: [[1, 2], []]})))
+    assert to_dict(lists.explode(name).sort("i", name)) == {"i": [1, 1, 2], name: [1, 2, None]}
+
+
+def test_explode_missing_column() -> None:
+    from narwhals.exceptions import ColumnNotFoundError
+
+    with pytest.raises(ColumnNotFoundError):
+        nw.from_native(df_native()).explode("nope")
+
+
+def test_replace_strict_empty_mapping() -> None:
+    # regression: an empty mapping leaked `StopIteration`
+    lf = nw.from_native(df_native())
+    result = to_dict(lf.select(nw.col("a").replace_strict([], [], default=0)))
+    assert result == {"a": [0, 0, 0, 0]}
 
 
 def test_fill_null_strategy() -> None:
