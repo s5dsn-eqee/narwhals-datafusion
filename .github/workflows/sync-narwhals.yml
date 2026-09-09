@@ -48,6 +48,7 @@ jobs:
       - name: create-pull-request
         uses: peter-evans/create-pull-request@v8
         with:
+          token: ${{ secrets.SYNC_NARWHALS_TOKEN || github.token }}
           commit-message: bump narwhals submodule and regenerate skip list
           title: bump narwhals submodule and regenerate skip list
           branch: chore/sync-narwhals
