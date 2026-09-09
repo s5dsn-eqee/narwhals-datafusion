@@ -27,6 +27,8 @@ class DataFusionExprStringNamespace(SQLExprStringNamespace["DataFusionExpr"]):
 
     def strip_chars(self, characters: str | None) -> DataFusionExpr:
         """Strip ``characters``, whitespace by default, from both ends."""
+        if characters == "":
+            return self.compliant
         # `btrim` takes one argument: character-set trims go through a regex
         chars = _char_class(string.whitespace if characters is None else characters)
         pattern = f"^[{chars}]+|[{chars}]+$"

@@ -181,9 +181,15 @@ def test_str_namespace() -> None:
         lf.select(
             up=nw.col("b").str.to_uppercase(),
             padded=nw.col("b").str.pad_start(3, "_"),
+            # regression: an empty set built an empty regex class
+            same=nw.col("b").str.strip_chars(""),
         )
     )
-    assert result == {"up": ["X", "Y", "Z", "X"], "padded": ["__x", "__y", "__z", "__x"]}
+    assert result == {
+        "up": ["X", "Y", "Z", "X"],
+        "padded": ["__x", "__y", "__z", "__x"],
+        "same": ["x", "y", "z", "x"],
+    }
 
 
 def test_dt_namespace() -> None:
