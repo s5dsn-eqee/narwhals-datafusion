@@ -75,6 +75,8 @@ narwhals 2.25 on datafusion 54. ⚠️ entries work with the caveat in parenthes
 | `Expr.struct` | `field` | | |
 | `LazyFrame` | `collect` `collect_schema` `drop` `drop_nulls` `filter` `group_by` `head` `join` `rename` `select` `sort` `top_k` `unique` `unpivot` `with_columns` `with_row_index` | `explode` (single column) · `sink_parquet` (file path only) | `join_asof` |
 
+## Known limitations
+
 - `mode`, `skew` and `kurtosis` need the `extra-functions` extra. It installs
   [datafusion-extra-functions-ffi](https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi),
   a prebuilt wheel of the `datafusion-extra-functions` crate. Without it the
@@ -82,9 +84,6 @@ narwhals 2.25 on datafusion 54. ⚠️ entries work with the caveat in parenthes
 - Not in the table: `Expr.filter`, `Expr.drop_nulls`, `Expr.unique`,
   `Expr.map_batches`, `Expr.ewm_mean`, `LazyFrame.tail`,
   `LazyFrame.gather_every`. Narwhals does not support them on any lazy backend.
-
-## Known limitations
-
 - Row order is guaranteed only after `sort`; `concat` may interleave inputs.
 - `nw.scan_csv`/`nw.scan_parquet` cannot dispatch to a plugin yet (narwhals
   gap); read with a `SessionContext` and pass the frame to `nw.from_native`.
