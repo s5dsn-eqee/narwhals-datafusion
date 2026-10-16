@@ -12,6 +12,7 @@ build/
 .coverage.*
 htmlcov/
 tmp/
+.uv-cache/
 
 # IDEs
 .vscode/

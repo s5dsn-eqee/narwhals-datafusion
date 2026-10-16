@@ -168,11 +168,22 @@ class DataFusionLazyFrame(
 
     def aggregate(self, *exprs: DataFusionExpr) -> Self:
         """Reduce the whole frame to one row of aggregates."""
-        selection = [value.alias(name) for name, value in evaluate_exprs_and_aliases(self, *exprs)]
+        pairs = evaluate_exprs_and_aliases(self, *exprs)
+        selection = [value.alias(name) for name, value in pairs]
         try:
-            return self._with_native(self.native.aggregate([], selection))
+            if all(expr._metadata.is_literal for expr in exprs):
+                # the optimizer drops an aggregate made of literals only; `count_star` keeps it
+                # and, once projected away, costs nothing. Physical plan:
+                #   ProjectionExec: expr=[ as literal, 1 as x]
+                #     PlaceholderRowExec
+                # No DataSourceExec at all.
+                native = self.native.aggregate([], [*selection, F.count_star()])
+                native = native.select(*(col(name) for name, _ in pairs))
+            else:
+                native = self.native.aggregate([], selection)
         except Exception as e:
             raise catch_datafusion_exception(e, self) from None
+        return self._with_native(native)
 
     def select(self, *exprs: DataFusionExpr) -> Self:
         selection = [value.alias(name) for name, value in evaluate_exprs_and_aliases(self, *exprs)]

@@ -38,6 +38,7 @@ __all__ = [
     "catch_datafusion_exception",
     "col",
     "evaluate_exprs_and_aliases",
+    "floor_mod",
     "function",
     "lit",
     "narwhals_to_native_dtype",
@@ -122,10 +123,18 @@ def _divide(numerator: Any, denominator: Any) -> Expr:
     return _ensure_expr(numerator).cast(pa.float64()) / _ensure_expr(denominator)
 
 
+def floor_mod(left: Expr, right: Expr) -> Expr:
+    """Compute ``%`` with the divisor's sign, as Python does."""
+    remainder = left % right
+    zero = lit(0)
+    sign_differs = (remainder < zero) != (right < zero)
+    return when((remainder != zero) & sign_differs, remainder + right, remainder)
+
+
 def _floordiv(left: Any, right: Any) -> Expr:
     left, right = _ensure_expr(left), _ensure_expr(right)
     # floor for any sign, staying in the input type: subtract the positive remainder first
-    return (left - ((left % right) + right) % right) / right
+    return (left - floor_mod(left, right)) / right
 
 
 def _substr(*args: Expr) -> Expr:

@@ -14,7 +14,7 @@ open an issue.
 
 | Pin | Policy |
 |---|---|
-| `narwhals>=2.25` | Floor only. A newer narwhals can break the private `_sql` layer at runtime; the `compat` workflow catches it, the fix is code plus a patch release. |
+| `narwhals>=2.27` | Floor only. A newer narwhals can break the private `_sql` layer at runtime; the `compat` workflow catches it, the fix is code plus a patch release. |
 | `datafusion>=54,<55` | Capped at the tested major; moves after both suites pass on the next one. Floor: aggregate arithmetic inside `aggregate()` fails on 53. |
 | `datafusion-extra-functions-ffi>=0.1` (extra) | Unbounded; each shim minor pins its own datafusion major. |
 

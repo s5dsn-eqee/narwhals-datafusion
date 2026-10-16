@@ -12,7 +12,7 @@ license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
   # floor only; the tested release is the `narwhals/` submodule tag
-  "narwhals>=2.25",
+  "narwhals>=2.27",
   # capped at the tested major; moves after both suites pass on the next one
   # (release skill). 54: aggregate arithmetic inside `aggregate()`
   "datafusion>=54,<55",

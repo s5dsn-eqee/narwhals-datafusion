@@ -33,6 +33,14 @@ grep -rn "^\s*# " src/narwhals_datafusion/*.py
 - `Expr` has no unary minus and no `**`; integer `/` truncates. `expr.py` maps
   `__neg__` to `lit(-1) * expr`, `__pow__` to `F.pow`, `__truediv__` to a
   `float64` cast first; `utils._floordiv` floors for mixed signs.
+- `%` takes the dividend's sign; narwhals (2.27+, per backend) wants the
+  divisor's. `utils.floor_mod` adds the divisor only when the remainder's sign
+  differs, so narrow integers never overflow (`((a % b) + b) % b` does, int8
+  `99 % 100`). `__mod__`/`__rmod__` and `_floordiv` use it; `%` by zero raises
+  in the engine, so `__mod__` wraps it in `when(other != 0, ...)` for null.
+- `array_has(expr, NULL)` is null for every row and `array_has` rejects a
+  Decimal literal narrower than the inner type; `list.contains` uses
+  `array_has_any(expr, make_array(item))`, which coerces both.
 - Reflected operators (`__rpow__`, `__rtruediv__`) `.alias("literal")`, as
   narwhals expects for a literal on the left.
 - Wrap scalars in `lit()` explicitly; 54's auto-wrapping is not uniform.
@@ -45,6 +53,10 @@ grep -rn "^\s*# " src/narwhals_datafusion/*.py
   adds `max(isnull)`.
 - Arithmetic over two aggregates inside `aggregate()` fails on 53 (`Invalid
   aggregate expression`): the reason for the `datafusion>=54` floor.
+- `aggregate([], [lit(...)])` with literals only loses its aggregate node in
+  `simplify_expressions` and fails at collect. When every expression is
+  `_metadata.is_literal` (`nw.len()` included, it has no inputs),
+  `dataframe.aggregate` adds a `count_star` and projects it away.
 - `mode`, `skew`, `kurtosis` come from the `extra-functions` shim via
   `extra_functions.extra_udaf`; without it they raise `NotImplementedError`
   naming the extra (`tests/test_extra_functions.py` covers both). The crate's
@@ -74,6 +86,9 @@ grep -rn "^\s*# " src/narwhals_datafusion/*.py
   `last_value` over a cumulative frame with `ignore_nulls=True`.
 - Only aggregate and window functions may appear in `.over(...)`: window each
   aggregate, combine outside (`namespace.cov`, `expr.skew` `window_f`).
+  Horizontal functions use `_from_elementwise_horizontal_op` so all-scalar
+  inputs broadcast through their operands' windows (`concat_str`,
+  `mean_horizontal`).
 
 ## Joins
 
@@ -97,8 +112,10 @@ grep -rn "^\s*# " src/narwhals_datafusion/*.py
 - `union` output order is nondeterministic (one partition per input, coalesced
   as they arrive). Tests asserting order after `concat` without a sort live in
   `ALWAYS_DESELECTED` in `run_tests.py`.
-- `write_parquet` takes a path; a file object would be `str()`-ed into a
-  filename. `sink_parquet` raises for non-path inputs.
+- `write_parquet`, `read_csv` and `read_parquet` take a path; a file object
+  would be `str()`-ed into a filename. `sink_parquet` raises for non-path
+  inputs; `scan_csv`/`scan_parquet` call narwhals' `ensure_path_source`, which
+  raises `TypeError` for the file-like sources narwhals 2.27 passes through.
 - `with_row_index` requires `order_by`. `row_number` is UInt64; minus an
   Int64 literal coerces to Decimal, so cast to Int64 first.
 

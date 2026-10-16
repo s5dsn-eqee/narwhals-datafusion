@@ -40,7 +40,7 @@ before a commit.
   and an entry in the `datafusion-workarounds` skill.
 - **The README matrix changes in the same commit** as the code that moves a
   method or a caveat.
-- **Pins.** `narwhals>=2.25`: floor only; a break is a code fix and a patch
+- **Pins.** `narwhals>=2.27`: floor only; a break is a code fix and a patch
   release. `datafusion>=54,<55`: capped at the tested major; moves after both
   suites pass on the next one. The shim pins its own datafusion major.
 - **Prose is minimal.** A comment, doc line or skill sentence exists only if a
@@ -70,7 +70,7 @@ src/narwhals_datafusion/
   utils.py          col()/quote(), FUNCTION_REMAP, window_expression, errors
   extra_functions.py  mode/skew/kurtosis via the FFI shim (optional extra)
   testing.py        pytest plugin feeding narwhals' suite a DataFusion frame
-tests/              this package's tests
+tests/              this package's tests; tests/pandera/ pins the stable.v1 calls pandera makes
 docs/playground.ipynb   tour of the API and the extra
 run_tests.py        narwhals-suite runner with TESTS_THAT_NEED_FIX
 update_run_tests.py regenerates TESTS_THAT_NEED_FIX

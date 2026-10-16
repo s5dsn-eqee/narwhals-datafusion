@@ -1,7 +1,7 @@
 ---
 name: sync-narwhals
 description: Bump the vendored narwhals submodule to a new release, regenerate the TESTS_THAT_NEED_FIX skip list, triage every newly failing narwhals test, and update the README version markers. Use after a narwhals release, when the weekly sync PR or a `compat` issue arrives, or when run_tests.py stops being green.
-argument-hint: "[target] (e.g., \"v2.26.0\", \"latest\", or omit to re-triage the current submodule tag)"
+argument-hint: "[target] (e.g., \"v2.27.1\", \"latest\", or omit to re-triage the current submodule tag)"
 ---
 
 # Sync the narwhals submodule
@@ -38,15 +38,15 @@ uv run --group tests python -m pytest narwhals/tests \
 `-c narwhals/pyproject.toml` applies narwhals' pytest config (`TZ=UTC`,
 warning filters); `narwhals_datafusion.testing` substitutes a DataFusion frame
 for the `constructor` fixture and skips eager-only tests. Reference at narwhals
-2.26.0 with pandas and polars installed:
+2.27.1 with pandas and polars installed:
 
 | Run | Result |
 |---|---|
-| unfiltered | 152 failed, 2,867 passed, 954 skipped, 21 xfailed |
-| unique failing names | 62 |
-| `run_tests.py` | 2,797 passed, 913 skipped, 20 xfailed |
+| unfiltered | 163 failed, 3,032 passed, 1,031 skipped, 21 xfailed |
+| unique failing names | 68 |
+| `run_tests.py` | 2,943 passed, 980 skipped, 20 xfailed |
 
-`TESTS_THAT_NEED_FIX` holds names, so its length tracks the 62.
+`TESTS_THAT_NEED_FIX` holds names, so its length tracks the 68.
 
 ## 3. Regenerate the skip list
 

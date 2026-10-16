@@ -12,7 +12,13 @@ from narwhals._expression_parsing import (
     combine_evaluate_output_names,
 )
 from narwhals._sql.namespace import SQLNamespace
-from narwhals._utils import Implementation, validate_separators
+from narwhals._typing import PluginName
+from narwhals._utils import (
+    Implementation,
+    check_column_names_are_unique,
+    ensure_path_source,
+    validate_separators,
+)
 
 from narwhals_datafusion.dataframe import DataFusionLazyFrame
 from narwhals_datafusion.expr import DataFusionExpr
@@ -29,7 +35,7 @@ from narwhals_datafusion.utils import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import Callable, Iterable, Sequence
 
     import datafusion  # noqa: F401  (string base-class parameter below)
     from datafusion.expr import Expr
@@ -39,9 +45,12 @@ if TYPE_CHECKING:
         ConcatMethod,
         CorrelationMethod,
         IntoDType,
-        NormalizedPath,
+        NormalizedSource,
         PythonLiteral,
     )
+
+
+PLUGIN_NAME = PluginName("narwhals-datafusion")
 
 
 class DataFusionNamespace(
@@ -72,7 +81,7 @@ class DataFusionNamespace(
         return DataFusionLazyFrame
 
     def scan_csv(
-        self, source: NormalizedPath, *, separator: str = ",", **kwds: Any
+        self, source: NormalizedSource, *, separator: str = ",", **kwds: Any
     ) -> DataFusionLazyFrame:
         """Read a CSV on the default ``SessionContext``.
 
@@ -80,12 +89,14 @@ class DataFusionNamespace(
         ``Implementation.UNKNOWN`` to plugins (2.25 asserts on it).
         """
         validate_separators(separator, ("delimiter", "delim", "sep"), kwds)
-        native = session_context().read_csv(source, delimiter=separator, **kwds)
+        path = ensure_path_source(source, PLUGIN_NAME)
+        native = session_context().read_csv(path, delimiter=separator, **kwds)
         return self._lazyframe.from_native(native, context=self)
 
-    def scan_parquet(self, source: NormalizedPath, **kwds: Any) -> DataFusionLazyFrame:
+    def scan_parquet(self, source: NormalizedSource, **kwds: Any) -> DataFusionLazyFrame:
         """Read a Parquet file on the default ``SessionContext``; same caveat as ``scan_csv``."""
-        native = session_context().read_parquet(source, **kwds)
+        path = ensure_path_source(source, PLUGIN_NAME)
+        native = session_context().read_parquet(path, **kwds)
         return self._lazyframe.from_native(native, context=self)
 
     # the four `SQLNamespace` primitives; everything else in `_sql` builds on them
@@ -123,20 +134,14 @@ class DataFusionNamespace(
     ) -> DataFusionExpr:
         """Join ``exprs`` as strings; a null makes the row null unless ``ignore_nulls``."""
 
-        def func(df: DataFusionLazyFrame) -> list[Expr]:
-            cols = list(chain.from_iterable(e(df) for e in exprs))
+        def func(cols: Sequence[Expr]) -> Expr:
             if ignore_nulls:
-                return [F.concat_ws(separator, *cols)]
+                return F.concat_ws(separator, *cols)
             # `concat_ws` skips nulls; narwhals wants the whole row null
             null_mask = reduce(operator.or_, (expr.is_null() for expr in cols))
-            return [when(~null_mask, F.concat_ws(separator, *cols))]
+            return when(~null_mask, F.concat_ws(separator, *cols))
 
-        return self._expr(
-            call=func,
-            evaluate_output_names=combine_evaluate_output_names(*exprs),
-            alias_output_names=combine_alias_output_names(*exprs),
-            version=self._version,
-        )
+        return self._expr._from_elementwise_horizontal_op(func, *exprs)
 
     def mean_horizontal(self, *exprs: DataFusionExpr) -> DataFusionExpr:
         """Row-wise mean of ``exprs``, ignoring nulls."""
@@ -243,7 +248,12 @@ class DataFusionNamespace(
         """Pack ``exprs`` into one struct column, fields named by their aliases."""
 
         def func(df: DataFusionLazyFrame) -> list[Expr]:
-            return [F.named_struct(evaluate_exprs_and_aliases(df, *exprs))]
+            fields = evaluate_exprs_and_aliases(df, *exprs)
+            # `named_struct` accepts repeated field names and builds
+            # `struct<a: int64, a: string>`; narwhals wants `DuplicateError`:
+            #   ProjectionExec: expr=[named_struct(a, a@0, a, b@1) as s]
+            check_column_names_are_unique([name for name, _ in fields])
+            return [F.named_struct(fields)]
 
         return self._expr(
             call=func,

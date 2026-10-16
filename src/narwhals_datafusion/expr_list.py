@@ -31,7 +31,13 @@ class DataFusionExprListNamespace(
         return self.compliant._with_elementwise(F.array_distinct)
 
     def contains(self, item: NonNestedLiteral) -> DataFusionExpr:
-        return self.compliant._with_elementwise(lambda expr: F.array_has(expr, lit(item)))
+        # `array_has` is null for a null item and does not coerce Decimal; the
+        # list form plans to the same single projection, `make_array` folded:
+        #   ProjectionExec: expr=[array_has_any(l@0, [2]) as r]
+        #     DataSourceExec: partitions=1, partition_sizes=[1]
+        return self.compliant._with_elementwise(
+            lambda expr: F.array_has_any(expr, F.make_array(lit(item)))
+        )
 
     def get(self, index: int) -> DataFusionExpr:
         """Element at zero-based ``index``; ``array_element`` counts from one."""

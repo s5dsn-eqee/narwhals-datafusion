@@ -419,6 +419,76 @@ def test_collect_to_pandas_and_polars() -> None:
     assert polars_df["b"].to_list() == ["x", "x", "y", "z"]
 
 
+def test_mod_sign_follows_divisor() -> None:
+    native = SessionContext().from_arrow(
+        pa.table(
+            {
+                "a": [-7, 7, -7, 5],
+                "b": [3, -3, -3, 0],
+                "i8": pa.array([99, -99, 127], pa.int8()).take([0, 1, 2, 0]),
+                "u8": pa.array([199, 200, 255, 7], pa.uint8()),
+            }
+        )
+    )
+    lf = nw.from_native(native)
+    result = to_dict(
+        lf.select(
+            m=nw.col("a") % nw.col("b"),
+            r=5 % nw.col("b"),
+            i8=nw.col("i8") % 100,
+            u8=nw.col("u8") % 200,
+            fd=nw.col("i8") // 100,
+        )
+    )
+    assert result == {
+        "m": [2, -2, -1, None],
+        "r": [2, -1, -1, None],
+        "i8": [99, 1, 27, 99],
+        "u8": [199, 0, 55, 7],
+        "fd": [0, -1, 1, 0],
+    }
+
+
+def test_list_contains_null_and_decimal() -> None:
+    from decimal import Decimal
+
+    native = SessionContext().from_arrow(
+        pa.table(
+            {
+                "i": [1, 2, 3, 4],
+                "l": pa.array([[1, None], [2], [], None], pa.list_(pa.int64())),
+                "d": pa.array([[Decimal("1.50")]] * 4, pa.list_(pa.decimal128(38, 2))),
+            }
+        )
+    )
+    result = to_dict(
+        nw.from_native(native)
+        .select("i", n=nw.col("l").list.contains(None), d=nw.col("d").list.contains(Decimal("1.5")))
+        .sort("i")
+    )
+    assert result["n"] == [True, False, False, None]
+    assert result["d"] == [True] * 4
+
+
+def test_concat_str_all_scalar_broadcasts() -> None:
+    lf = nw.from_native(df_native())
+    result = to_dict(lf.with_columns(s=nw.concat_str(nw.lit("x"), nw.lit("y"), separator="-")))
+    assert result["s"] == ["x-y"] * 4
+
+
+def test_struct_duplicate_names_raise() -> None:
+    lf = nw.from_native(df_native())
+    with pytest.raises(nw.exceptions.DuplicateError):
+        lf.select(nw.struct(nw.col("a"), nw.col("a")))
+
+
+def test_literal_only_select() -> None:
+    lf = nw.from_native(df_native())
+    result = lf.select(nw.lit(None, nw.List(nw.Int64())), x=nw.lit(1))
+    assert result.collect_schema()["literal"] == nw.List(nw.Int64())
+    assert to_dict(result) == {"literal": [None], "x": [1]}
+
+
 def test_documented_refusals() -> None:
     # deliberate refusals, listed in the README coverage table
     lf = nw.from_native(df_native())

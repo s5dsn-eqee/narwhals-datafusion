@@ -23,6 +23,7 @@ from narwhals_datafusion.expr_struct import DataFusionExprStructNamespace
 from narwhals_datafusion.utils import (
     BACKEND_VERSION,
     col,
+    floor_mod,
     lit,
     narwhals_to_native_dtype,
     sort_expr,
@@ -264,6 +265,18 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
     def __rtruediv__(self, other: Self) -> Self:
         return self._with_binary(
             lambda expr, other: other.cast(pa.float64()).__truediv__(expr), other
+        ).alias("literal")
+
+    # `%` takes the dividend's sign and raises on a zero divisor; narwhals wants
+    # the divisor's sign and null
+    def __mod__(self, other: Self) -> Self:
+        return self._with_binary(
+            lambda expr, other: when(other != lit(0), floor_mod(expr, other)), other
+        )
+
+    def __rmod__(self, other: Self) -> Self:
+        return self._with_binary(
+            lambda expr, other: when(expr != lit(0), floor_mod(other, expr)), other
         ).alias("literal")
 
     def n_unique(self) -> Self:
