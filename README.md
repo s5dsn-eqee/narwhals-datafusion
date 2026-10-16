@@ -39,6 +39,13 @@ frame verbs become `datafusion.DataFrame` methods, and DataFusion executes the
 plan. Dtypes are pyarrow end-to-end. A longer tour, extra included:
 [`docs/playground.ipynb`](docs/playground.ipynb).
 
+## Used by
+
+- [pandera](https://github.com/unionai-oss/pandera/blob/main/pandera/backends/datafusion/register.py):
+  `pip install 'pandera[datafusion]'` validates `datafusion.DataFrame`
+  through this plugin. `tests/pandera/` pins the `narwhals.stable.v1` calls
+  it makes.
+
 ## Compatibility
 
 - Python `>=3.10`; tested on 3.12.
