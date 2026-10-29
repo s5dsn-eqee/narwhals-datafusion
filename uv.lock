@@ -195,7 +195,7 @@ wheels = [
 
 [[package]]
 name = "narwhals"
-version = "2.27.1"
+version = "2.28.0"
 source = { editable = "narwhals" }
 
 [package.metadata]
@@ -229,6 +229,7 @@ core-tests = [
     { name = "duckdb", specifier = ">=1.5" },
     { name = "hypothesis", specifier = ">=6.0.0" },
     { name = "narwhals", extras = ["duckdb", "polars", "pyarrow", "sqlframe", "sql"] },
+    { name = "packaging", specifier = ">=21.3" },
     { name = "pandas", specifier = ">=1.3.4" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-cov" },
@@ -239,6 +240,7 @@ core-tests = [
 dev = [
     { name = "covdefaults" },
     { name = "hypothesis", specifier = ">=6.0.0" },
+    { name = "packaging", specifier = ">=21.3" },
     { name = "prek" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-cov" },
@@ -252,6 +254,7 @@ dev-core = [
     { name = "duckdb", specifier = ">=1.5" },
     { name = "hypothesis", specifier = ">=6.0.0" },
     { name = "narwhals", extras = ["duckdb", "polars", "pyarrow", "sqlframe", "sql"] },
+    { name = "packaging", specifier = ">=21.3" },
     { name = "pandas", specifier = ">=1.3.4" },
     { name = "prek" },
     { name = "pytest", specifier = ">=9.0.3" },
@@ -276,6 +279,7 @@ extreme-minimum-versions = [
     { name = "duckdb", specifier = "==1.1" },
     { name = "hypothesis", specifier = ">=6.0.0" },
     { name = "numpy", specifier = "==1.21.4" },
+    { name = "packaging", specifier = ">=21.3" },
     { name = "pandas", specifier = "==1.3.4" },
     { name = "polars", specifier = "==0.20.4" },
     { name = "pyarrow", specifier = "==13.0.0" },
@@ -296,6 +300,7 @@ extreme-not-so-old-versions = [
     { name = "duckdb", specifier = "==1.3" },
     { name = "hypothesis", specifier = ">=6.0.0" },
     { name = "numpy", specifier = "==1.24.4" },
+    { name = "packaging", specifier = ">=21.3" },
     { name = "pandas", specifier = "==2.0.3" },
     { name = "polars", specifier = "==0.20.8" },
     { name = "pyarrow", specifier = "==15.0.0" },
@@ -315,6 +320,7 @@ extreme-pretty-old-versions = [
     { name = "duckdb", specifier = "==1.2" },
     { name = "hypothesis", specifier = ">=6.0.0" },
     { name = "numpy", specifier = "==1.22.0" },
+    { name = "packaging", specifier = ">=21.3" },
     { name = "pandas", specifier = "==1.4.1" },
     { name = "polars", specifier = "==0.20.4" },
     { name = "pyarrow", specifier = "==14.0.0" },
@@ -339,6 +345,7 @@ local-dev = [
     { name = "mkdocstrings-python", specifier = ">=2.0.3" },
     { name = "narwhals", extras = ["duckdb", "polars", "pyarrow", "sqlframe", "sql"] },
     { name = "narwhals", extras = ["duckdb", "pyarrow", "polars", "sql", "sqlframe"] },
+    { name = "packaging", specifier = ">=21.3" },
     { name = "pandas", specifier = ">=1.3.4" },
     { name = "prek" },
     { name = "pytest", specifier = ">=9.0.3" },
@@ -355,6 +362,7 @@ min-pyspark-version = [
     { name = "duckdb", specifier = ">=1.5" },
     { name = "hypothesis", specifier = ">=6.0.0" },
     { name = "narwhals", extras = ["duckdb", "polars", "pyarrow", "sqlframe", "sql"] },
+    { name = "packaging", specifier = ">=21.3" },
     { name = "pandas", specifier = ">=1.3.4" },
     { name = "pyspark", specifier = "==3.5.0" },
     { name = "pytest", specifier = ">=9.0.3" },
@@ -368,6 +376,7 @@ sklearn = [{ name = "scikit-learn" }]
 tests = [
     { name = "covdefaults" },
     { name = "hypothesis", specifier = ">=6.0.0" },
+    { name = "packaging", specifier = ">=21.3" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-cov" },
     { name = "pytest-env" },
