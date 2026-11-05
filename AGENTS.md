@@ -1,7 +1,8 @@
 # Agent Instructions
 
-For agents working on narwhals-datafusion. Usage and API coverage are in the
-[README](README.md); the human workflow is in [CONTRIBUTING.md](CONTRIBUTING.md).
+For agents working on narwhals-datafusion. Usage is in the
+[README](README.md), API coverage in [docs/api-coverage.md](docs/api-coverage.md);
+the human workflow is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## What this is
 
@@ -24,7 +25,7 @@ convention to read before writing the code it names.
 |---|---|
 | [`datafusion-workarounds`](.ai/skills/datafusion-workarounds/SKILL.md) | TRIGGER: before touching expression, window, join, cast or dtype code |
 | [`sync-narwhals`](.ai/skills/sync-narwhals/SKILL.md) | bumping the narwhals submodule or regenerating the skip list |
-| [`check-coverage`](.ai/skills/check-coverage/SKILL.md) | auditing API support against the README matrix |
+| [`check-coverage`](.ai/skills/check-coverage/SKILL.md) | auditing API support against the coverage matrix |
 | [`release`](.ai/skills/release/SKILL.md) | cutting a version, moving a pin, a new datafusion major or shim |
 
 Setup and the four checks: [CONTRIBUTING.md](CONTRIBUTING.md). All four pass
@@ -38,8 +39,8 @@ before a commit.
   return a wrong result silently (`n_unique` over a window is the model).
 - **Every workaround carries a one-line comment** naming the engine behaviour,
   and an entry in the `datafusion-workarounds` skill.
-- **The README matrix changes in the same commit** as the code that moves a
-  method or a caveat.
+- **The coverage matrix (`docs/api-coverage.md`) changes in the same commit**
+  as the code that moves a method or a caveat.
 - **Pins.** `narwhals>=2.27`: floor only; a break is a code fix and a patch
   release. `datafusion>=54,<55`: capped at the tested major; moves after both
   suites pass on the next one. The shim pins its own datafusion major.
@@ -72,6 +73,8 @@ src/narwhals_datafusion/
   testing.py        pytest plugin feeding narwhals' suite a DataFusion frame
 tests/              this package's tests; tests/pandera/ pins the stable.v1 calls pandera makes
 docs/playground.ipynb   tour of the API and the extra
+docs/api-coverage.md    coverage matrix
+docs/known-limitations.md, docs/architecture.md
 run_tests.py        narwhals-suite runner with TESTS_THAT_NEED_FIX
 update_run_tests.py regenerates TESTS_THAT_NEED_FIX
 docstring_template.mustache   autoDocstring template

@@ -36,8 +36,8 @@ the extra resolves to 54 and a bare install gets 55 with `mode`/`skew`/
    `__datafusion_aggregate_udf__` getter, release the next shim minor.
 2. Here: cap to `<56`, `uv lock --upgrade-package datafusion` (and the shim
    once released), run the checklist, fix what changed, run `check-coverage`,
-   update the engine version in the README and the `datafusion-workarounds`
-   skill.
+   update the engine version in the README, `docs/api-coverage.md` and the
+   `datafusion-workarounds` skill.
 3. The `mode` GROUP BY xfail in `tests/test_extra_functions.py` is strict; if
    the new crate fixed it, remove the marker.
 

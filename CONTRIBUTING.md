@@ -39,7 +39,7 @@ list.
 3. `uv run --group tests python update_run_tests.py` and review the diff to
    `run_tests.py`. Tests that pass locally but fail only in CI go in
    `ALWAYS_DESELECTED`; tests that need the extra go in `TESTS_NEED_EXTRA`.
-4. Update the README coverage table in the same commit.
+4. Update the coverage table in `docs/api-coverage.md` in the same commit.
 
 ## Updating the narwhals submodule
 

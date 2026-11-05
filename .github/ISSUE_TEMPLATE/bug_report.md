@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: A wrong result, an error, or a method the README says is supported but is not
+about: A wrong result, an error, or a method the coverage table says is supported but is not
 labels: bug
 ---
 

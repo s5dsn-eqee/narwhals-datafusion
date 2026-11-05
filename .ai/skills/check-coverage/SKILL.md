@@ -1,13 +1,13 @@
 ---
 name: check-coverage
-description: Audit which parts of the narwhals lazy API this backend implements, partially supports, or declares unsupported, and reconcile that with the README coverage matrix and the narwhals-suite skip list. Use after a narwhals bump, before a release, or when asked "does this backend support X".
+description: Audit which parts of the narwhals lazy API this backend implements, partially supports, or declares unsupported, and reconcile that with the docs/api-coverage.md matrix and the narwhals-suite skip list. Use after a narwhals bump, before a release, or when asked "does this backend support X".
 argument-hint: "[namespace] (e.g., \"Expr\", \"Expr.str\", \"Expr.dt\", \"Expr.list\", \"LazyFrame\", or omit for all)"
 ---
 
 # Check narwhals API coverage
 
-The README "API coverage" table is hand-maintained. Rebuild the truth from
-three sources and report the differences.
+The coverage table in `docs/api-coverage.md` is hand-maintained. Rebuild the
+truth from three sources and report the differences.
 
 ## 1. What narwhals asks of a lazy backend
 
@@ -32,8 +32,8 @@ grep -rn -B3 "raise NotImplementedError" src/narwhals_datafusion/   # partial co
 ## 3. What the suite says
 
 Every name in `TESTS_THAT_NEED_FIX` (`run_tests.py`) must be explained by
-source 2 or a README "Known limitations" bullet (order, `scan_*`); otherwise it is an
-undocumented limitation or a bug.
+source 2 or a `docs/known-limitations.md` bullet (order, `scan_*`); otherwise
+it is an undocumented limitation or a bug.
 
 ## Report
 
@@ -41,7 +41,7 @@ undocumented limitation or a bug.
 ## <Namespace> coverage
 
 ### Mismatches
-- `method` — code says <supported|partial|unsupported> (file:line), README says <...>. Proposed cell: "..."
+- `method` — code says <supported|partial|unsupported> (file:line), docs say <...>. Proposed cell: "..."
 - `method` — in TESTS_THAT_NEED_FIX, no limitation explains it. Likely cause: ...
 
 ### New in narwhals since the submodule tag
@@ -51,12 +51,13 @@ undocumented limitation or a bug.
 - namespaces that reconcile
 ```
 
-Rank by user impact: README says supported but it raises is worst.
+Rank by user impact: docs say supported but it raises is worst.
 
 ## Fixing
 
-- README cells: space-separated backticked names; partial entries
-  `name (caveat)` joined by ` · `. Keep the "Not listed" paragraph accurate.
+- Coverage cells: space-separated backticked names; partial entries
+  `name (caveat)` joined by ` · `. Keep the "Not in the coverage table" bullet
+  in `docs/known-limitations.md` accurate.
 - Implementing a method: read `datafusion-workarounds` first, add a test to
-  `tests/test_smoke.py`, rerun `update_run_tests.py`, move the README cell, one
-  commit.
+  `tests/test_smoke.py`, rerun `update_run_tests.py`, move the coverage cell,
+  one commit.

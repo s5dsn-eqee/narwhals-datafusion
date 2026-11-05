@@ -36,12 +36,16 @@ result = (
 
 Everything is lazy until `.collect()`: expressions become `datafusion.Expr`,
 frame verbs become `datafusion.DataFrame` methods, and DataFusion executes the
-plan. Dtypes are pyarrow end-to-end. A longer tour, extra included:
-[`docs/playground.ipynb`](docs/playground.ipynb).
+plan. Dtypes are pyarrow end-to-end.
+
+- [Playground](https://github.com/s5dsn-eqee/narwhals-datafusion/blob/main/docs/playground.ipynb): a tour of the API, extra included
+- [API coverage](https://github.com/s5dsn-eqee/narwhals-datafusion/blob/main/docs/api-coverage.md): supported, partial and unsupported methods
+- [Known limitations](https://github.com/s5dsn-eqee/narwhals-datafusion/blob/main/docs/known-limitations.md)
+- [Architecture](https://github.com/s5dsn-eqee/narwhals-datafusion/blob/main/docs/architecture.md)
 
 ## Used by
 
-- [pandera](https://github.com/unionai-oss/pandera/blob/main/pandera/backends/datafusion/register.py):
+- [pandera](https://pandera.readthedocs.io/en/stable/datafusion.html):
   `pip install 'pandera[datafusion]'` validates `datafusion.DataFrame`
   through this plugin. `tests/pandera/` pins the `narwhals.stable.v1` calls
   it makes.
@@ -55,44 +59,3 @@ plan. Dtypes are pyarrow end-to-end. A longer tour, extra included:
   datafusion major.
 - Weekly, `compat.yml` (the badge): both suites on the newest narwhals release
   inside the datafusion cap, extra included.
-
-## Architecture
-
-A subclass of narwhals' SQL layer (`narwhals._sql`, `narwhals._compliant`),
-the layer DuckDB, Ibis and Spark also use.
-
-| Module | Class |
-|---|---|
-| `dataframe.py` | `DataFusionLazyFrame`: frame verbs over `datafusion.DataFrame` |
-| `expr.py` | `DataFusionExpr`: the `SQLExpr` hooks, aggregates, windows, casts |
-| `namespace.py` | `DataFusionNamespace`: `SQLNamespace` primitives, IO, horizontal functions |
-| `group_by.py`, `selectors.py`, `expr_str/dt/list/struct.py` | supporting surface |
-| `utils.py` | function-name remapping, window/sort builders, dtype bridge via `narwhals._arrow` |
-
-## API coverage
-
-narwhals 2.28 on datafusion 54. ⚠️ entries work with the caveat in parentheses.
-
-| Namespace | ✅ Supported | ⚠️ Partial | ❌ Not supported |
-|---|---|---|---|
-| `Expr` | `abs` `alias` `all` `any` `any_value` `ceil` `clip` `cos` `count` `cum_count` `cum_max` `cum_min` `cum_sum` `diff` `exp` `fill_nan` `first` `floor` `is_between` `is_close` `is_duplicated` `is_finite` `is_first_distinct` `is_in` `is_last_distinct` `is_nan` `is_null` `is_unique` `last` `len` `log` `max` `mean` `median` `min` `null_count` `over` `pipe` `rank` `rolling_mean` `rolling_std` `rolling_sum` `rolling_var` `round` `shift` `sin` `sqrt` `std` `sum` `var` | `cast` (no `Enum`) · `fill_null` (no `strategy` + `limit`) · `kurtosis` (`[extra-functions]` extra) · `mode` (`[extra-functions]` extra, `keep="any"` only, nulls not counted) · `n_unique` (not over windows) · `replace_strict` (explicit `default` required) · `skew` (`[extra-functions]` extra) | `cum_prod` `quantile` |
-| `Expr.str` | `contains` `ends_with` `head` `len_chars` `pad_end` `pad_start` `replace_all` `slice` `split` `starts_with` `strip_chars` `strip_chars_end` `strip_chars_start` `tail` `to_date` `to_lowercase` `to_time` `to_uppercase` `zfill` | `to_datetime` (explicit `format` required) · `to_titlecase` (no word breaks on digits) | `replace` (use `replace_all`) |
-| `Expr.dt` | `convert_time_zone` `date` `day` `hour` `microsecond` `millisecond` `minute` `month` `nanosecond` `ordinal_day` `second` `to_string` `truncate` `weekday` `year` | `replace_time_zone` (`None`/`"UTC"` only) | `offset_by` `timestamp` `total_microseconds` `total_milliseconds` `total_minutes` `total_nanoseconds` `total_seconds` |
-| `Expr.list` | `contains` `get` `len` `max` `min` `sort` | `unique` (`maintain_order=False` only) | `mean` `median` `sum` |
-| `Expr.struct` | `field` | | |
-| `LazyFrame` | `collect` `collect_schema` `drop` `drop_nulls` `filter` `group_by` `head` `join` `rename` `select` `sort` `top_k` `unique` `unpivot` `with_columns` `with_row_index` | `explode` (single column) · `sink_parquet` (file path only) | `join_asof` |
-
-## Known limitations
-
-- `mode`, `skew` and `kurtosis` need the `extra-functions` extra. It installs
-  [datafusion-extra-functions-ffi](https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi),
-  a prebuilt wheel of the `datafusion-extra-functions` crate. Without it the
-  three raise `NotImplementedError`.
-- Not in the table: `Expr.ewm_mean`, `Expr.map_batches`, `LazyFrame.tail`,
-  `LazyFrame.gather_every`: narwhals does not support them on lazy frames.
-  `Expr.filter`, `Expr.drop_nulls`, `Expr.unique`: narwhals' SQL layer does
-  not support them.
-- Row order is guaranteed only after `sort`; `concat` may interleave inputs.
-- `nw.scan_csv`/`nw.scan_parquet` take `backend="narwhals-datafusion"` on
-  narwhals 2.28+. On 2.27, read with a `SessionContext` and pass the frame to
-  `nw.from_native`.

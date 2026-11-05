@@ -65,7 +65,7 @@ grep -rn "^\s*# " src/narwhals_datafusion/*.py
   (strict xfail); do not work around it in Python.
 - The shim's `mode` ignores nulls; narwhals 2.28 counts null as a value. Its
   SQL-layer trick (`mode` over one-element lists) fails: the shim rejects
-  `List` input. README caveat and skip list until the shim counts nulls.
+  `List` input. Coverage caveat and skip list until the shim counts nulls.
 - `median` on strings, exact `quantile`, `product`: no engine support,
   `not_implemented()`. No approximate substitutes without an explicit decision.
 - No list aggregate (`array_sum`/`array_mean`/`array_median`) in 54:
@@ -143,7 +143,7 @@ grep -rn "^\s*# " src/narwhals_datafusion/*.py
 
 ## Where the truth is
 
-- `README.md` coverage matrix: same commit as any change here.
+- `docs/api-coverage.md` matrix: same commit as any change here.
 - `tests/test_smoke.py`: a regression test per entry; add one with a new entry.
 - `narwhals/src/narwhals/_duckdb/`: the reference backend for what narwhals
   expects.

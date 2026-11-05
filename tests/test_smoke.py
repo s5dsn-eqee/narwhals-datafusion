@@ -505,7 +505,7 @@ def test_literal_only_select() -> None:
 
 
 def test_documented_refusals() -> None:
-    # deliberate refusals, listed in the README coverage table
+    # deliberate refusals, listed in docs/api-coverage.md
     lf = nw.from_native(df_native())
     with pytest.raises(NotImplementedError, match="n_unique"):
         lf.select(nw.col("a").n_unique().over("b"))
