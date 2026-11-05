@@ -38,15 +38,15 @@ uv run --group tests python -m pytest narwhals/tests \
 `-c narwhals/pyproject.toml` applies narwhals' pytest config (`TZ=UTC`,
 warning filters); `narwhals_datafusion.testing` substitutes a DataFusion frame
 for the `constructor` fixture and skips eager-only tests. Reference at narwhals
-2.27.1 with pandas and polars installed:
+2.28.0 with pandas and polars installed:
 
 | Run | Result |
 |---|---|
-| unfiltered | 163 failed, 3,032 passed, 1,031 skipped, 21 xfailed |
-| unique failing names | 68 |
-| `run_tests.py` | 2,943 passed, 980 skipped, 20 xfailed |
+| unfiltered | 178 failed, 3,189 passed, 1,131 skipped, 25 xfailed |
+| unique failing names | 78 |
+| `run_tests.py` | 3,095 passed, 1,080 skipped, 22 xfailed |
 
-`TESTS_THAT_NEED_FIX` holds names, so its length tracks the 68.
+`TESTS_THAT_NEED_FIX` holds names, so its length tracks the 78.
 
 ## 3. Regenerate the skip list
 

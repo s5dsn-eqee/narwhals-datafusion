@@ -63,6 +63,9 @@ grep -rn "^\s*# " src/narwhals_datafusion/*.py
   `skewness` is bias-adjusted; `_correct` in `expr.skew` undoes it and pins the
   n=0/1/2 cases. `mode` in a multi-partition GROUP BY is broken upstream
   (strict xfail); do not work around it in Python.
+- The shim's `mode` ignores nulls; narwhals 2.28 counts null as a value. Its
+  SQL-layer trick (`mode` over one-element lists) fails: the shim rejects
+  `List` input. README caveat and skip list until the shim counts nulls.
 - `median` on strings, exact `quantile`, `product`: no engine support,
   `not_implemented()`. No approximate substitutes without an explicit decision.
 - No list aggregate (`array_sum`/`array_mean`/`array_median`) in 54:

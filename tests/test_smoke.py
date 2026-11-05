@@ -167,6 +167,21 @@ def test_sink_parquet(tmp_path) -> None:
         lf.sink_parquet(io.BytesIO())
 
 
+def test_scan_through_plugin_name(tmp_path) -> None:
+    import pyarrow.csv as pacsv
+    import pyarrow.parquet as pq
+
+    table = pa.table(DATA)
+    pacsv.write_csv(table, tmp_path / "t.csv")
+    pq.write_table(table, tmp_path / "t.parquet")
+    for lf in (
+        nw.scan_csv(str(tmp_path / "t.csv"), backend="narwhals-datafusion"),
+        nw.scan_parquet(str(tmp_path / "t.parquet"), backend="narwhals-datafusion"),
+    ):
+        assert type(lf.to_native()).__module__ == "datafusion.dataframe"
+        assert to_dict(lf.sort("c"))["b"] == ["x", "x", "y", "z"]
+
+
 def test_mean_horizontal_all_null_row() -> None:
     # regression: all-null row is null, not NaN
     native = SessionContext().from_arrow(pa.table({"x": [1.0, None], "y": [2.0, None]}))

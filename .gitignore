@@ -13,6 +13,7 @@ build/
 htmlcov/
 tmp/
 .uv-cache/
+.codegraph/
 
 # IDEs
 .vscode/
