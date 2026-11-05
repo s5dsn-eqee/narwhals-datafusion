@@ -104,7 +104,13 @@ ALWAYS_DESELECTED: list[str] = [
 ]
 
 # pass with the `extra-functions` extra, fail without it; `unary` calls skew
-TESTS_NEED_EXTRA: list[str] = ["test_kurtosis", "test_mode", "test_skew", "test_unary"]
+TESTS_NEED_EXTRA: list[str] = [
+    "test_kurtosis",
+    "test_mode",
+    "test_numeric_reduction_keeps_dtype_when_all_null",
+    "test_skew",
+    "test_unary",
+]
 
 DESELECTED = [*TESTS_THAT_NEED_FIX, *ALWAYS_DESELECTED]
 if importlib.util.find_spec("datafusion_extra_functions_ffi") is None:
