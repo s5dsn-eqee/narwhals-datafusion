@@ -83,18 +83,14 @@ class DataFusionNamespace(
     def scan_csv(
         self, source: NormalizedSource, *, separator: str = ",", **kwds: Any
     ) -> DataFusionLazyFrame:
-        """Read a CSV on the default ``SessionContext``.
-
-        Unreachable via ``nw.scan_csv`` until narwhals routes
-        ``Implementation.UNKNOWN`` to plugins (2.25 asserts on it).
-        """
+        """Read a CSV on the default ``SessionContext``."""
         validate_separators(separator, ("delimiter", "delim", "sep"), kwds)
         path = ensure_path_source(source, PLUGIN_NAME)
         native = session_context().read_csv(path, delimiter=separator, **kwds)
         return self._lazyframe.from_native(native, context=self)
 
     def scan_parquet(self, source: NormalizedSource, **kwds: Any) -> DataFusionLazyFrame:
-        """Read a Parquet file on the default ``SessionContext``; same caveat as ``scan_csv``."""
+        """Read a Parquet file on the default ``SessionContext``."""
         path = ensure_path_source(source, PLUGIN_NAME)
         native = session_context().read_parquet(path, **kwds)
         return self._lazyframe.from_native(native, context=self)

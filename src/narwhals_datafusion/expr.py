@@ -125,6 +125,12 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
             return F.first_value(expr, null_treatment=NullTreatment.IGNORE_NULLS)
         return F.first_value(expr)
 
+    def _singleton_list(self, expr: Expr) -> Expr:
+        return F.make_array(expr)
+
+    def _list_first(self, expr: Expr) -> Expr:
+        return F.array_element(expr, lit(1))
+
     # ORDER BY / IGNORE NULLS / DISTINCT declared inside an aggregate are dropped
     # when it runs as a window function: `first`/`last`/`any_value` put them on
     # the window instead
