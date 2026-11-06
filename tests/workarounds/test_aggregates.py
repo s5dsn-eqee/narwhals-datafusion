@@ -9,9 +9,9 @@ import pyarrow as pa
 import pytest
 from datafusion import SessionContext, col, lit, udaf
 from datafusion import functions as F
+from narwhals.exceptions import InvalidOperationError
 
 import narwhals as nw
-from narwhals.exceptions import InvalidOperationError
 
 ENGINE_CHANGED = "engine behaviour changed: re-check this datafusion-workarounds entry"
 
@@ -126,9 +126,7 @@ def test_list_sum_is_float_only() -> None:
     floats = native(pa.table({"l": pa.array([[1.5, 2.5], [], None], pa.list_(pa.float64()))}))
     engine = floats.select(F.array_sum(col("l")).alias("s")).to_pydict()
     assert engine == {"s": [4.0, None, None]}, ENGINE_CHANGED
-    assert collect(nw.from_native(floats).select(nw.col("l").list.sum())) == {
-        "l": [4.0, 0.0, None]
-    }
+    assert collect(nw.from_native(floats).select(nw.col("l").list.sum())) == {"l": [4.0, 0.0, None]}
 
 
 def test_list_mean_and_median() -> None:

@@ -28,7 +28,7 @@ def by_i(df, expr) -> list:
 
 
 def test_order_inside_windowed_aggregate_moves_to_window() -> None:
-    """Modifiers inside a windowed aggregate: `ORDER BY` is rejected; `first`/`last` use the window's."""
+    """Order inside a windowed aggregate raises; `first`/`last` order the window instead."""
     df = native()
     first_ordered = F.first_value(col("x"), order_by=[col("i").sort()])
     with pytest.raises(Exception, match="Aggregate order_by is not supported"):

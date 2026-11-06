@@ -89,7 +89,7 @@ def test_scalar_arguments_need_lit() -> None:
     df = native({"x": [None, 2, 3]})
     with pytest.raises(AttributeError):
         df.select(F.coalesce(col("x"), 0)).collect()
-    with pytest.raises(Exception):
+    with pytest.raises(TypeError, match="cannot be interpreted as an integer"):
         df.select(F.lag(col("x"), lit(1))).collect()
     lf = nw.from_native(df)
     assert collect(lf.select(nw.col("x").fill_null(0))) == {"x": [0, 2, 3]}
