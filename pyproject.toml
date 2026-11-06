@@ -14,8 +14,8 @@ dependencies = [
   # floor only; the tested release is the `narwhals/` submodule tag
   "narwhals>=2.27",
   # capped at the tested major; moves after both suites pass on the next one
-  # (release skill). 54: aggregate arithmetic inside `aggregate()`
-  "datafusion>=54,<55",
+  # (release skill). 55: `array_avg`/`array_sum`, datafusion-extra-functions
+  "datafusion>=55,<56",
   "pyarrow>=14.0.0",
 ]
 classifiers = [
@@ -28,10 +28,10 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# `mode`/`skew`/`kurtosis`; prebuilt wheels from
-# https://github.com/s5dsn-eqee/datafusion-extra-functions-ffi. Without it they
-# raise NotImplementedError. Each shim minor pins its own datafusion major.
-extra-functions = ["datafusion-extra-functions-ffi>=0.1"]
+# `mode`/`skew`/`kurtosis` from
+# https://github.com/datafusion-contrib/datafusion-extra-functions. Without it
+# they raise NotImplementedError. Each release pins its own datafusion major.
+extra-functions = ["datafusion-extra-functions>=0.5.5"]
 
 [project.urls]
 Repository = "https://github.com/s5dsn-eqee/narwhals-datafusion"

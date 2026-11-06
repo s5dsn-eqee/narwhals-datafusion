@@ -1,7 +1,7 @@
 """Run narwhals' own test suite (the `narwhals/` submodule) against this backend.
 
 Known failures are deselected via `TESTS_THAT_NEED_FIX`; regenerate it with
-`update_run_tests.py`. Without the shim, `TESTS_NEED_EXTRA` is deselected too.
+`update_run_tests.py`. Without the extra, `TESTS_NEED_EXTRA` is deselected too.
 Extra arguments pass through to pytest.
 """
 
@@ -19,8 +19,6 @@ TESTS_THAT_NEED_FIX: list[str] = [
     "test_cast_to_enum_vmain",
     "test_contains_invalid_item_raises",
     "test_contains_invalid_item_raises_without_rows",
-    "test_convert_time_zone_from_none",
-    "test_datetime",
     "test_drop_nulls_agg",
     "test_duration_attributes",
     "test_duration_attributes_nano",
@@ -30,24 +28,17 @@ TESTS_THAT_NEED_FIX: list[str] = [
     "test_fill_null_limits",
     "test_fill_null_strategies_with_limit_as_none",
     "test_floordiv_floats",
-    "test_floordiv_large_integers",
     "test_is_finite_expr",
     "test_joinasof_by",
     "test_joinasof_numeric",
     "test_joinasof_suffix",
     "test_joinasof_time",
     "test_lazy_cum_prod_grouped",
-    "test_mean_expr",
     "test_median_expr",
-    "test_median_expr_raises_on_str",
     "test_mode_expr_keep_all_lazy",
     "test_mode_expr_keep_any_nulls",
-    "test_mode_group_by_multimodal",
-    "test_mode_group_by_multiple_cols",
     "test_mode_group_by_nulls",
-    "test_mode_group_by_unimodal",
     "test_mode_over_nulls",
-    "test_n_unique_over",
     "test_nan_non_float",
     "test_native_namespace_frame",
     "test_offset_by",
@@ -55,19 +46,13 @@ TESTS_THAT_NEED_FIX: list[str] = [
     "test_offset_by_dst",
     "test_offset_by_invalid_interval",
     "test_offset_by_tz",
-    "test_over_quantile",
     "test_parse_weight",
-    "test_quantile_boundaries_expr",
     "test_quantile_expr",
-    "test_quantile_expr_group_by",
-    "test_quantile_inf",
-    "test_quantile_nan",
     "test_rank_with_order_by",
     "test_rank_with_order_by_and_partition_by",
     "test_rename_duplicate_raises",
     "test_rename_duplicate_raises_with_followup_op",
     "test_replace_strict_expr_basic",
-    "test_replace_time_zone",
     "test_scan_csv",
     "test_scan_parquet",
     "test_str_replace_edge_expr_scalar",
@@ -86,7 +71,6 @@ TESTS_THAT_NEED_FIX: list[str] = [
     "test_to_datetime_infer_fmt",
     "test_to_datetime_infer_fmt_from_date",
     "test_to_datetime_tz_aware",
-    "test_tz_aware",
     "test_unique_expr_agg",
     "test_unique_maintain_order_expr",
     "test_with_columns_numpy_array",
@@ -113,7 +97,7 @@ TESTS_NEED_EXTRA: list[str] = [
 ]
 
 DESELECTED = [*TESTS_THAT_NEED_FIX, *ALWAYS_DESELECTED]
-if importlib.util.find_spec("datafusion_extra_functions_ffi") is None:
+if importlib.util.find_spec("datafusion_extra_functions") is None:
     DESELECTED += TESTS_NEED_EXTRA
 
 # extra arguments pass through to pytest; paths replace the default target

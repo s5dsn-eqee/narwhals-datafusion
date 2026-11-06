@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pyarrow as pa
 from datafusion import functions as F
 from narwhals._compliant import LazyExprNamespace
 from narwhals._compliant.any_namespace import ListNamespace
 from narwhals._utils import not_implemented
 
-from narwhals_datafusion.utils import lit
+from narwhals_datafusion.utils import lit, when
 
 if TYPE_CHECKING:
+    from datafusion.expr import Expr
     from narwhals.typing import NonNestedLiteral
 
     from narwhals_datafusion.expr import DataFusionExpr
@@ -54,7 +56,21 @@ class DataFusionExprListNamespace(
             lambda expr: F.array_sort(expr, descending=descending, null_first=not nulls_last)
         )
 
-    # no `array_sum`/`array_mean`/`array_median` in 54
-    mean = not_implemented()
+    def mean(self) -> DataFusionExpr:
+        return self.compliant._with_elementwise(F.array_avg)
+
+    def sum(self) -> DataFusionExpr:
+        """Sum of the non-null elements, 0 for an empty list; float elements only."""
+
+        # `array_sum` returns Float64 for every input and null for an empty list
+        def func(expr: Expr, dtype: pa.DataType) -> Expr:
+            value_type = getattr(dtype, "value_type", None)
+            if value_type is None or not pa.types.is_floating(value_type):
+                msg = f"`list.sum` on `{dtype}` is not supported for the DataFusion backend."
+                raise NotImplementedError(msg)
+            return when(expr.is_not_null(), F.coalesce(F.array_sum(expr), lit(0.0)))
+
+        return self.compliant._with_native_dtype(func, elementwise=True)
+
+    # no `array_median`
     median = not_implemented()
-    sum = not_implemented()
