@@ -32,7 +32,7 @@ grep -rn -B3 "raise NotImplementedError" src/narwhals_datafusion/   # partial co
 ## 3. What the suite says
 
 Every name in `TESTS_THAT_NEED_FIX` (`run_tests.py`) must be explained by
-source 2 or a `docs/known-limitations.md` bullet (order, `scan_*`); otherwise
+source 2 or a `docs/known-limitations.md` row (order, `scan_*`); otherwise
 it is an undocumented limitation or a bug.
 
 ## Report
@@ -56,8 +56,8 @@ Rank by user impact: docs say supported but it raises is worst.
 ## Fixing
 
 - Coverage cells: space-separated backticked names; partial entries
-  `name (caveat)` joined by ` · `. Keep the "Not in the coverage table" bullet
-  in `docs/known-limitations.md` accurate.
+  `name (caveat)` joined by ` · `. Keep the `docs/known-limitations.md` rows
+  accurate, each with its test.
 - Implementing a method: read `datafusion-workarounds` first, add a test to
   `tests/test_smoke.py`, rerun `update_run_tests.py`, move the coverage cell,
   one commit.

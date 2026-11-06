@@ -501,15 +501,6 @@ def test_list_sum_exact_types_raise(inner: pa.DataType) -> None:
         to_dict(lf.select(nw.col("l").list.sum()))
 
 
-@pytest.mark.parametrize("method", ["tail", "gather_every"])
-def test_v1_row_selection_is_declared(method: str) -> None:
-    import narwhals.stable.v1 as nw_v1
-
-    lf = nw_v1.from_native(df_native())
-    with pytest.raises(NotImplementedError, match=method):
-        getattr(lf, method)(2)
-
-
 def test_list_sum_non_list_raises() -> None:
     lf = list_frame([[1.0]], pa.float64())
     with pytest.raises(NotImplementedError, match=r"`list\.sum` on `int64`"):

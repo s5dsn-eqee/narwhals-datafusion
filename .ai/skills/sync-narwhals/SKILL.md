@@ -64,7 +64,7 @@ changed and the regex needs updating. Never commit an emptied list.
 
 | Bucket | Evidence | Action |
 |---|---|---|
-| Known limitation | matches a `docs/api-coverage.md` caveat or `docs/known-limitations.md` bullet | keep |
+| Known limitation | matches a `docs/api-coverage.md` caveat or `docs/known-limitations.md` row | keep |
 | New narwhals API | `AttributeError`/`not_implemented` on a method this backend lacks | implement, or add to the `docs/api-coverage.md` unsupported column with the reason |
 | Changed internal contract | failure inside `narwhals/_sql` or `_compliant` | fix to the new contract; read the DuckDB backend's diff for that release |
 | Engine bug or gap | DataFusion error text | workaround plus `datafusion-workarounds` entry, or `NotImplementedError` |
