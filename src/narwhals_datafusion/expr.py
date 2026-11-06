@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     )
     from narwhals._typing import NoDefault
     from narwhals._utils import _LimitedContext
-    from narwhals.typing import FillNullStrategy, IntoDType
+    from narwhals.typing import FillNullStrategy, IntoDType, RollingInterpolationMethod
     from typing_extensions import Self
 
     from narwhals_datafusion.dataframe import DataFusionLazyFrame
@@ -52,6 +52,19 @@ if TYPE_CHECKING:
 
     DataFusionWindowFunction = WindowFunction[DataFusionLazyFrame, Expr]
     DataFusionWindowInputs = WindowInputs[Expr]
+
+
+# the crate's `mode` has accumulators for these; any other type fails at execution
+def _mode_supports(dtype: pa.DataType) -> bool:
+    """Whether the extra's ``mode`` accepts ``dtype``."""
+    return (
+        pa.types.is_integer(dtype)
+        or pa.types.is_floating(dtype)
+        or pa.types.is_date(dtype)
+        or pa.types.is_time(dtype)
+        or pa.types.is_timestamp(dtype)
+        or dtype in (pa.string(), pa.string_view())
+    )
 
 
 class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
@@ -78,6 +91,25 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
     @property
     def _backend_version(self) -> tuple[int, ...]:
         return BACKEND_VERSION
+
+    def _with_native_dtype(
+        self, call: Callable[[Expr, pa.DataType], Expr], *, elementwise: bool
+    ) -> Self:
+        """Apply ``call`` to each native expression and its Arrow type."""
+
+        def func(df: DataFusionLazyFrame) -> list[Expr]:
+            return [call(expr, df._native_dtype(expr)) for expr in self(df)]
+
+        def window_f(df: DataFusionLazyFrame, inputs: DataFusionWindowInputs) -> list[Expr]:
+            return [call(expr, df._native_dtype(expr)) for expr in self.window_function(df, inputs)]
+
+        return self.__class__(
+            func,
+            window_f if elementwise else None,
+            evaluate_output_names=self._evaluate_output_names,
+            alias_output_names=self._alias_output_names,
+            version=self._version,
+        )
 
     def __narwhals_namespace__(self) -> DataFusionNamespace:  # pragma: no cover
         from narwhals_datafusion.namespace import DataFusionNamespace
@@ -113,12 +145,7 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
         return F.first_value(expr, order_by=[sort_expr(by) for by in order_by])
 
     def _last(self, expr: Expr, *order_by: str) -> Expr:
-        # `last_value` with an inner `order_by` is rewritten to first internally;
-        # `first_value` over the reversed order is equivalent
-        return F.first_value(
-            expr,
-            order_by=[sort_expr(by, descending=True, nulls_last=True) for by in order_by],
-        )
+        return F.last_value(expr, order_by=[sort_expr(by) for by in order_by])
 
     def _any_value(self, expr: Expr, *, ignore_nulls: bool) -> Expr:
         if ignore_nulls:
@@ -297,9 +324,12 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
             )
 
         def window_f(df: DataFusionLazyFrame, inputs: DataFusionWindowInputs) -> Sequence[Expr]:
-            # DISTINCT inside a window aggregate is dropped: wrong result, not an error
-            msg = "`n_unique` over a window is not supported for the DataFusion backend."
-            raise NotImplementedError(msg)
+            W = self._window_expression
+            return [
+                W(F_("count_distinct", expr), inputs.partition_by)
+                + W(F_("max", self._when(F_("isnull", expr), one, zero)), inputs.partition_by)
+                for expr in self(df)
+            ]
 
         return self._with_callable(func, window_f)
 
@@ -439,9 +469,9 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
     def struct(self) -> DataFusionExprStructNamespace:
         return DataFusionExprStructNamespace(self)
 
-    # no built-in mode/skewness/kurtosis in 54; the `extra-functions` shim provides them
+    # no built-in mode/skewness/kurtosis; the `extra-functions` extra provides them
     def _extra_udaf(self, function_name: str, operation: str) -> Any:
-        """The shim's ``function_name``; without the shim, raise naming ``operation``."""
+        """The extra's ``function_name``; without the extra, raise naming ``operation``."""
         from narwhals_datafusion.extra_functions import INSTALL_HINT, extra_udaf
 
         fn = extra_udaf(function_name)
@@ -457,7 +487,15 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
                 "Hint: Use `nw.col(...).mode(keep='any')` instead."
             )
             raise NotImplementedError(msg)
-        return self._with_callable(self._extra_udaf("mode", "mode"))
+        fn = self._extra_udaf("mode", "mode")
+
+        def checked(expr: Expr, dtype: pa.DataType) -> Expr:
+            if not _mode_supports(dtype):
+                msg = f"`mode` on `{dtype}` is not supported for the DataFusion backend."
+                raise NotImplementedError(msg)
+            return fn(expr)
+
+        return self._with_native_dtype(checked, elementwise=False)
 
     def kurtosis(self) -> Self:
         return self._with_callable(self._extra_udaf("kurtosis_pop", "kurtosis"))
@@ -494,6 +532,27 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
 
         return self._with_callable(func, window_f)
 
-    # no exact quantile or `product` aggregate in 54
+    def median(self) -> Self:
+        # `median` has numeric signatures only; other types fail while planning
+        numeric = (pa.types.is_integer, pa.types.is_floating, pa.types.is_decimal)
+
+        def checked(expr: Expr, dtype: pa.DataType) -> Expr:
+            if not any(is_type(dtype) for is_type in numeric):
+                msg = "`median` operation not supported for non-numeric input type."
+                raise InvalidOperationError(msg)
+            return F.median(expr)
+
+        return self._with_native_dtype(checked, elementwise=False)
+
+    def quantile(self, quantile: float, interpolation: RollingInterpolationMethod) -> Self:
+        """Exact quantile; ``percentile_cont`` interpolates linearly only."""
+        if interpolation != "linear":
+            msg = (
+                f"`quantile` with `interpolation={interpolation!r}` is not supported "
+                "for the DataFusion backend; use 'linear'."
+            )
+            raise NotImplementedError(msg)
+        return self._with_callable(lambda expr: F.percentile_cont(expr, quantile))
+
+    # no `product` aggregate
     cum_prod = not_implemented()
-    quantile = not_implemented()

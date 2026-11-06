@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-import string
 from typing import TYPE_CHECKING
 
 import pyarrow as pa
@@ -17,36 +15,14 @@ if TYPE_CHECKING:
     from narwhals_datafusion.expr import DataFusionExpr
 
 
-def _char_class(characters: str) -> str:
-    """Escape ``characters`` for use inside a regex character class."""
-    return "".join(re.escape(char) for char in characters)
-
-
 class DataFusionExprStringNamespace(SQLExprStringNamespace["DataFusionExpr"]):
     """``Expr.str``; most methods come from ``SQLExprStringNamespace``."""
 
-    def strip_chars(self, characters: str | None) -> DataFusionExpr:
-        """Strip ``characters``, whitespace by default, from both ends."""
-        if characters == "":
-            return self.compliant
-        # `btrim` takes one argument: character-set trims go through a regex
-        chars = _char_class(string.whitespace if characters is None else characters)
-        pattern = f"^[{chars}]+|[{chars}]+$"
-        return self.compliant._with_elementwise(
-            lambda expr: F.regexp_replace(expr, lit(pattern), lit(""), lit("g"))
-        )
-
     def strip_chars_start(self, characters: str) -> DataFusionExpr:
-        pattern = f"^[{_char_class(characters)}]+"
-        return self.compliant._with_elementwise(
-            lambda expr: F.regexp_replace(expr, lit(pattern), lit(""), lit("g"))
-        )
+        return self.compliant._with_elementwise(lambda expr: F.ltrim(expr, lit(characters)))
 
     def strip_chars_end(self, characters: str) -> DataFusionExpr:
-        pattern = f"[{_char_class(characters)}]+$"
-        return self.compliant._with_elementwise(
-            lambda expr: F.regexp_replace(expr, lit(pattern), lit(""), lit("g"))
-        )
+        return self.compliant._with_elementwise(lambda expr: F.rtrim(expr, lit(characters)))
 
     def replace_all(self, value: DataFusionExpr, pattern: str, *, literal: bool) -> DataFusionExpr:
         """Replace every match of ``pattern`` with ``value``; ``literal`` disables regex."""
@@ -80,19 +56,10 @@ class DataFusionExprStringNamespace(SQLExprStringNamespace["DataFusionExpr"]):
 
     def to_time(self, format: str | None) -> DataFusionExpr:
         """Parse with ``format``, or cast when none is given."""
-        time_dtype = self.compliant._version.dtypes.Time()
         if format is None:
             # Arrow's cast parses "HH:MM:SS" strings directly
-            return self.compliant.cast(time_dtype)
-
-        # `to_timestamp` needs a date: parse against the epoch day and cast down.
-        # `concat` turns a null into "1970-01-01 " (parse error), hence the null branch
-        def func(expr: Expr) -> Expr:
-            parsed = F.to_timestamp(F.concat(lit("1970-01-01 "), expr), lit(f"%Y-%m-%d {format}"))
-            null = lit(None).cast(pa.timestamp("ns"))
-            return F.when(expr.is_null(), null).otherwise(parsed)
-
-        return self.compliant._with_elementwise(func).cast(time_dtype)
+            return self.compliant.cast(self.compliant._version.dtypes.Time())
+        return self.compliant._with_elementwise(lambda expr: F.to_time(expr, lit(format)))
 
     def to_titlecase(self) -> DataFusionExpr:
         return self.compliant._with_elementwise(F.initcap)

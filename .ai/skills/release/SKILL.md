@@ -1,45 +1,38 @@
 ---
 name: release
-description: Cut a narwhals-datafusion release to PyPI, or move a dependency pin (datafusion cap, narwhals floor, the FFI shim extra). Use for "release", "publish", "datafusion 55 shipped", "rebuild the ffi shim".
-argument-hint: "[what] (e.g., \"0.2.0\", \"datafusion 55\", \"ffi shim\", or omit for the checklist)"
+description: Cut a narwhals-datafusion release to PyPI, or move a dependency pin (datafusion cap, narwhals floor, the extra-functions extra). Use for "release", "publish", "datafusion 56 shipped".
+argument-hint: "[what] (e.g., \"0.2.0\", \"datafusion 56\", or omit for the checklist)"
 ---
 
 # Release and pins
 
 Pushing the `v*` tag and publishing need write access to this repository; a
-fork cannot publish. The shim is a separate repository; without access there,
-open an issue.
+fork cannot publish.
 
 ## Pins
 
 | Pin | Policy |
 |---|---|
 | `narwhals>=2.27` | Floor only. A newer narwhals can break the private `_sql` layer at runtime; the `compat` workflow catches it, the fix is code plus a patch release. |
-| `datafusion>=54,<55` | Capped at the tested major; moves after both suites pass on the next one. Floor: aggregate arithmetic inside `aggregate()` fails on 53. |
-| `datafusion-extra-functions-ffi>=0.1` (extra) | Unbounded; each shim minor pins its own datafusion major. |
+| `datafusion>=55,<56` | Capped at the tested major; moves after both suites pass on the next one. Floor: `array_avg`/`array_sum` and `datafusion-extra-functions` need 55. |
+| `datafusion-extra-functions>=0.5.5` (extra) | Unbounded; each upstream release pins its own datafusion major. |
 
-The shim's pin is what prevents loading an aggregate UDF capsule into a
+That package's pin is what prevents loading an aggregate UDF capsule into a
 different `datafusion-ffi` major, which is undefined behaviour, not an error
-(datafusion-python's capsule version check does not cover aggregate UDFs as
-of 54). One shim minor per datafusion major.
+(datafusion-python checks only the capsule name for aggregate UDFs as of 55).
 
-## New datafusion major (e.g. 55)
+## New datafusion major (e.g. 56)
 
-Until the cap moves nobody installs 55. With the cap at `<56` and no shim 0.2,
-the extra resolves to 54 and a bare install gets 55 with `mode`/`skew`/
-`kurtosis` raising `NotImplementedError`.
-
-1. Shim repo (`s5dsn-eqee/datafusion-extra-functions-ffi`): bump
-   `datafusion-expr` and `datafusion-ffi` in `Cargo.toml`, re-pin the
-   `datafusion-extra-functions` git rev to a commit on the same major, check
-   upstream `docs/source/user-guide/upgrade-guides.md` for changes to the
-   `__datafusion_aggregate_udf__` getter, release the next shim minor.
-2. Here: cap to `<56`, `uv lock --upgrade-package datafusion` (and the shim
-   once released), run the checklist, fix what changed, run `check-coverage`,
-   update the engine version in the README, `docs/api-coverage.md` and the
-   `datafusion-workarounds` skill.
-3. The `mode` GROUP BY xfail in `tests/test_extra_functions.py` is strict; if
-   the new crate fixed it, remove the marker.
+1. Wait for a `datafusion-extra-functions` release on PyPI that pins the new
+   major; until then the extra resolves the old one.
+2. Move the cap; move the floor too if the code starts using the new major's
+   functions. `uv lock --upgrade-package datafusion --upgrade-package
+   datafusion-extra-functions`, run the checklist, fix what changed,
+   `update_run_tests.py`, run `check-coverage`, update the engine version in
+   `docs/api-coverage.md` and the `datafusion-workarounds` skill and the pins
+   in the README and `AGENTS.md`.
+3. Re-probe the gaps the workarounds skill names (`array_median`, integer
+   `array_sum`, `mode` input types and nulls).
 
 ## Cutting a release
 
@@ -76,7 +69,7 @@ curl -s https://pypi.org/integrity/narwhals-datafusion/<version>/<wheel filename
 ## After publishing
 
 - Fresh venv, `pip install "narwhals-datafusion[extra-functions]==<version>"`,
-  run `mode`: proves the shim wheel resolves. Second venv, bare install: `mode`
+  run `mode`: proves the extra's wheel resolves. Second venv, bare install: `mode`
   raises `NotImplementedError` naming the extra.
 - Stale README badges: GitHub's Camo cache; `curl -X PURGE <camo url>` or wait
   a day.

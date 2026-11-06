@@ -26,7 +26,7 @@ convention to read before writing the code it names.
 | [`datafusion-workarounds`](.ai/skills/datafusion-workarounds/SKILL.md) | TRIGGER: before touching expression, window, join, cast or dtype code |
 | [`sync-narwhals`](.ai/skills/sync-narwhals/SKILL.md) | bumping the narwhals submodule or regenerating the skip list |
 | [`check-coverage`](.ai/skills/check-coverage/SKILL.md) | auditing API support against the coverage matrix |
-| [`release`](.ai/skills/release/SKILL.md) | cutting a version, moving a pin, a new datafusion major or shim |
+| [`release`](.ai/skills/release/SKILL.md) | cutting a version, moving a pin, a new datafusion major |
 
 Setup and the four checks: [CONTRIBUTING.md](CONTRIBUTING.md). All four pass
 before a commit.
@@ -38,12 +38,14 @@ before a commit.
   raises `NotImplementedError` naming the backend and the argument. Never
   return a wrong result silently (`n_unique` over a window is the model).
 - **Every workaround carries a one-line comment** naming the engine behaviour,
-  and an entry in the `datafusion-workarounds` skill.
+  an entry in the `datafusion-workarounds` skill, and a test in
+  `tests/workarounds/` that pins the engine behaviour (no test, no workaround).
 - **The coverage matrix (`docs/api-coverage.md`) changes in the same commit**
   as the code that moves a method or a caveat.
 - **Pins.** `narwhals>=2.27`: floor only; a break is a code fix and a patch
-  release. `datafusion>=54,<55`: capped at the tested major; moves after both
-  suites pass on the next one. The shim pins its own datafusion major.
+  release. `datafusion>=55,<56`: capped at the tested major; moves after both
+  suites pass on the next one. The extra's package pins its own datafusion
+  major.
 - **Prose is minimal.** A comment, doc line or skill sentence exists only if a
   reader needs it to act; one reason per rule, no justification paragraphs, no
   comparisons to other projects, no judgement of upstream.
@@ -69,7 +71,7 @@ src/narwhals_datafusion/
   group_by.py       DataFusionGroupBy: the native aggregate call
   selectors.py      DataFusionSelector: nw.selectors
   utils.py          col()/quote(), FUNCTION_REMAP, window_expression, errors
-  extra_functions.py  mode/skew/kurtosis via the FFI shim (optional extra)
+  extra_functions.py  mode/skew/kurtosis via datafusion-extra-functions (optional extra)
   testing.py        pytest plugin feeding narwhals' suite a DataFusion frame
 tests/              this package's tests; tests/pandera/ pins the stable.v1 calls pandera makes
 docs/playground.ipynb   tour of the API and the extra

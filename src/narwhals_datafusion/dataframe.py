@@ -50,6 +50,20 @@ if TYPE_CHECKING:
     from narwhals_datafusion.namespace import DataFusionNamespace
 
 
+def _value_supertype(types: set[pa.DataType]) -> pa.DataType | None:
+    """Polars' supertype of ``types``, or ``None`` when there is one type."""
+    if len(types) == 1:
+        return None
+    numeric = {t for t in types if not pa.types.is_boolean(t)}
+    if not all(pa.types.is_integer(t) or pa.types.is_floating(t) for t in numeric):
+        return pa.string()
+    # pyarrow promotes like polars, except it rejects bool and fits signed + uint64 in int64
+    if pa.uint64() in numeric and any(pa.types.is_signed_integer(t) for t in numeric):
+        return pa.float64()
+    schemas = [pa.schema([("v", t)]) for t in numeric]
+    return pa.unify_schemas(schemas, promote_options="permissive").field("v").type
+
+
 # `datafusion.DataFrame` has no `columns`, so it fails narwhals' `NativeLazyFrame`
 # bound; dispatch goes through `is_native`, so the mismatch is type-only.
 class DataFusionLazyFrame(
@@ -105,6 +119,10 @@ class DataFusionLazyFrame(
         if self._cached_native_schema is None:
             self._cached_native_schema = self.native.schema()
         return self._cached_native_schema
+
+    def _native_dtype(self, expr: Expr) -> pa.DataType:
+        """Arrow type of ``expr`` against this frame, from the plan alone."""
+        return self.native.select(expr.alias("_")).schema().field(0).type
 
     @property
     def schema(self) -> dict[str, DType]:
@@ -244,7 +262,10 @@ class DataFusionLazyFrame(
             sort_expr(name, descending=desc, nulls_last=nulls_last)
             for name, desc in zip(by, descending_flags, strict=True)
         ]
-        return self._with_native(self.native.sort(*keys))
+        try:
+            return self._with_native(self.native.sort(*keys))
+        except Exception as e:
+            raise catch_datafusion_exception(e, self) from None
 
     def top_k(self, k: int, *, by: Iterable[str], reverse: bool | Sequence[bool]) -> Self:
         """The ``k`` rows with the largest ``by`` values; ``reverse`` takes the smallest."""
@@ -310,6 +331,9 @@ class DataFusionLazyFrame(
         suffix: str,
     ) -> Self:
         """Join on ``left_on``/``right_on``; right columns that collide get ``suffix``."""
+        for frame, keys in ((self, left_on), (other, right_on)):
+            if error := frame._check_columns_exist(keys or ()):
+                raise error
         left_columns, right_columns = self.columns, other.columns
 
         # shared column names make the joined schema ambiguous: rename every
@@ -321,7 +345,8 @@ class DataFusionLazyFrame(
         }
         rhs = other.native.select(*(col(name).alias(tmp) for name, tmp in tmp_names.items()))
         keys = zip(left_on or (), right_on or (), strict=True)
-        on = [col(left) == col(tmp_names[right]) for left, right in keys] or [lit(True)]
+        on = [col(left) == col(tmp_names[right]) for left, right in keys]
+        # no `how="cross"`; `join_on` without a predicate is one
         joined = self.native.join_on(rhs, *on, how="inner" if how == "cross" else how)
         if how in ("semi", "anti"):  # the engine keeps left columns only
             return self._with_native(joined)
@@ -384,15 +409,7 @@ class DataFusionLazyFrame(
 
         # `union` coerces values but reports the first input's type: cast the
         # value columns to their polars supertype first
-        types = {self._native_schema.field(name).type for name in on_}
-        if len(types) == 1:
-            target = None
-        elif all(pa.types.is_integer(t) or pa.types.is_boolean(t) for t in types):
-            target = pa.int64()
-        elif all(pa.types.is_integer(t) or pa.types.is_floating(t) for t in types):
-            target = pa.float64()
-        else:
-            target = pa.string()
+        target = _value_supertype({self._native_schema.field(name).type for name in on_})
 
         # no native unpivot: one projection per value column, unioned
         frames = [
@@ -427,3 +444,6 @@ class DataFusionLazyFrame(
         self.native.write_parquet(str(file))
 
     join_asof = not_implemented()
+    # `stable.v1` only; no SQL-layer frame implements them
+    gather_every = not_implemented()
+    tail = not_implemented()

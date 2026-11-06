@@ -10,8 +10,9 @@ uvx pre-commit install
 ```
 
 `uv sync` installs the package editable and narwhals editable from the
-`narwhals/` submodule (`[tool.uv.sources]`). The extra is the shim behind
-`mode`/`skew`/`kurtosis`; the narwhals suite expects it. Already cloned without
+`narwhals/` submodule (`[tool.uv.sources]`). The extra is the
+`datafusion-extra-functions` package behind `mode`/`skew`/`kurtosis`; the
+narwhals suite expects it. Already cloned without
 `--recursive`: `git submodule update --init --recursive`.
 
 ## Checks

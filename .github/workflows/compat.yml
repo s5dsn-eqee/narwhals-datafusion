@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   latest:
-    # newest narwhals release; datafusion and the shim as the cap resolves them
+    # newest narwhals release; datafusion and the extra as the cap resolves them
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

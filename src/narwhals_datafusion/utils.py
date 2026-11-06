@@ -133,8 +133,12 @@ def floor_mod(left: Expr, right: Expr) -> Expr:
 
 def _floordiv(left: Any, right: Any) -> Expr:
     left, right = _ensure_expr(left), _ensure_expr(right)
-    # floor for any sign, staying in the input type: subtract the positive remainder first
-    return (left - floor_mod(left, right)) / right
+    remainder = left % right
+    zero = lit(0)
+    floor_below = (remainder != zero) & ((remainder < zero) != (right < zero))
+    # `left - remainder` cannot overflow; `right / right` is 1 without widening the type
+    truncated = (left - remainder) / right
+    return truncated - when(floor_below, right / right, right - right)
 
 
 def _substr(*args: Expr) -> Expr:

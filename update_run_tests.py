@@ -45,7 +45,7 @@ def update_run_tests() -> None:
     content = run_tests_path.read_text(encoding="utf-8")
 
     # hand-maintained lists stay out of the regenerated one: ALWAYS_DESELECTED so CI
-    # runs do not churn it, TESTS_NEED_EXTRA so a run without the shim does not record them
+    # runs do not churn it, TESTS_NEED_EXTRA so a run without the extra does not record them
     permanent: set[str] = set()
     for name in ("ALWAYS_DESELECTED", "TESTS_NEED_EXTRA"):
         block = re.search(rf"{name}(?:: list\[str\])?\s*=\s*\[(.*?)\]", content, re.DOTALL)

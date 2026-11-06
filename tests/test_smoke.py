@@ -5,6 +5,7 @@ import datetime as dt
 import pyarrow as pa
 import pytest
 from datafusion import SessionContext
+from narwhals.exceptions import ColumnNotFoundError, InvalidOperationError
 
 import narwhals as nw
 
@@ -371,6 +372,150 @@ def test_struct_and_list_namespaces() -> None:
     assert result == {"ln": [1, 2], "mx": [5, 3]}
 
 
+def test_quantile_linear() -> None:
+    lf = nw.from_native(df_native())
+    result = to_dict(
+        lf.select(q=nw.col("a").quantile(0.25, "linear"), r=nw.col("c").quantile(0.5, "linear"))
+    )
+    assert result == {"q": [1.5], "r": [2.0]}
+
+
+def test_quantile_group_by_and_over() -> None:
+    native = SessionContext().from_arrow(
+        pa.table({"g": [1, 1, 1, 2, 2], "x": [1.0, None, 3.0, 4.0, 6.0]})
+    )
+    lf = nw.from_native(native)
+    q = nw.col("x").quantile(0.5, "linear")
+    assert to_dict(lf.group_by("g").agg(q).sort("g")) == {"g": [1, 2], "x": [2.0, 5.0]}
+    over = to_dict(lf.with_columns(q=q.over("g")).sort("g").select("q"))
+    assert over == {"q": [2.0, 2.0, 2.0, 5.0, 5.0]}
+
+
+@pytest.mark.parametrize("interpolation", ["nearest", "higher", "lower", "midpoint"])
+def test_quantile_other_interpolations_raise(interpolation: str) -> None:
+    with pytest.raises(NotImplementedError, match=f"interpolation={interpolation!r}"):
+        nw.from_native(df_native()).select(nw.col("a").quantile(0.5, interpolation))
+
+
+def test_median_non_numeric_raises() -> None:
+    with pytest.raises(InvalidOperationError, match="`median` operation not supported"):
+        to_dict(nw.from_native(df_native()).select(nw.col("b").median()))
+
+
+def list_frame(values: list, inner: pa.DataType) -> nw.LazyFrame:
+    native = SessionContext().from_arrow(
+        pa.table({"i": range(len(values)), "l": pa.array(values, type=pa.list_(inner))})
+    )
+    return nw.from_native(native)
+
+
+@pytest.mark.parametrize(
+    "op",
+    [
+        lambda lf: lf.sort("nope"),
+        lambda lf: lf.group_by("nope").agg(nw.col("a").sum()),
+        lambda lf: lf.group_by("b").agg(nw.col("nope").sum()),
+        lambda lf: lf.join(lf, left_on="nope", right_on="a"),
+        lambda lf: lf.join(lf, left_on="a", right_on="nope"),
+    ],
+    ids=["sort", "group_by-key", "agg", "join-left", "join-right"],
+)
+def test_missing_column_raises_column_not_found(op) -> None:
+    with pytest.raises(ColumnNotFoundError, match="nope"):
+        to_dict(op(nw.from_native(df_native())))
+
+
+@pytest.mark.parametrize(
+    ("x", "y", "dtype", "values"),
+    [
+        (pa.array([1.5]), pa.array([True]), nw.Float64, [1.5, 1.0]),
+        (pa.array([1], pa.int8()), pa.array([True]), nw.Int8, [1, 1]),
+        (pa.array([1], pa.uint8()), pa.array([-1], pa.int8()), nw.Int16, [1, -1]),
+        (pa.array([1], pa.int8()), pa.array([1.5], pa.float32()), nw.Float32, [1.0, 1.5]),
+        (pa.array([2**63], pa.uint64()), pa.array([-1]), nw.Float64, [2.0**63, -1.0]),
+        (pa.array([1]), pa.array(["a"]), nw.String, ["1", "a"]),
+    ],
+    ids=["float-bool", "int8-bool", "uint8-int8", "int8-float32", "uint64-int64", "int-str"],
+)
+def test_unpivot_value_supertype_matches_polars(
+    x: pa.Array, y: pa.Array, dtype: nw.dtypes.DType, values: list
+) -> None:
+    native = SessionContext().from_arrow(pa.table({"x": x, "y": y}))
+    result = nw.from_native(native).unpivot(on=["x", "y"]).sort("variable")
+    assert result.collect_schema()["value"] == dtype
+    assert to_dict(result.select("value")) == {"value": values}
+
+
+def test_floordiv_narrow_int_edges() -> None:
+    native = SessionContext().from_arrow(
+        pa.table(
+            {
+                "a": pa.array([-128, 127, -7, 7, 6], pa.int8()),
+                "b": pa.array([3, -128, 2, -2, 3], pa.int8()),
+            }
+        )
+    )
+    result = nw.from_native(native).select(q=nw.col("a") // nw.col("b"))
+    assert result.collect_schema()["q"] == nw.Int8
+    assert to_dict(result) == {"q": [-43, -1, -4, -4, 2]}
+
+    floats = SessionContext().from_arrow(pa.table({"a": [1.0, 3.0, -1.5], "b": [2.0, 2.0, 2.0]}))
+    result = to_dict(nw.from_native(floats).select(q=nw.col("a") // nw.col("b")))
+    assert result == {"q": [0.0, 1.0, -1.0]}
+
+
+def test_last_with_null_order_keys() -> None:
+    native = SessionContext().from_arrow(
+        pa.table(
+            {
+                "g": [1, 1, 1, 2, 2, 2],
+                "k": [None, 1, 2, None, 5, 4],
+                "x": [10, 20, 30, 40, None, 60],
+            }
+        )
+    )
+    lf = nw.from_native(native)
+    result = to_dict(lf.group_by("g").agg(nw.col("x").last(order_by="k")).sort("g"))
+    assert result == {"g": [1, 2], "x": [30, None]}
+
+
+def test_list_mean() -> None:
+    lf = list_frame([[1, 2, 3], [None, 4], [], None, [None, None]], pa.int64())
+    result = lf.select("i", m=nw.col("l").list.mean()).sort("i")
+    assert result.collect_schema()["m"] == nw.Float64
+    assert to_dict(result.select("m")) == {"m": [2.0, 4.0, None, None, None]}
+
+
+@pytest.mark.parametrize("inner", [pa.float64(), pa.float32()])
+def test_list_sum_floats(inner: pa.DataType) -> None:
+    lf = list_frame([[1.5, 2.5], [None, 4.0], [], None, [None]], inner)
+    result = lf.with_columns(s=nw.col("l").list.sum()).sort("i")
+    assert result.collect_schema()["s"] == nw.Float64
+    assert to_dict(result.select("s")) == {"s": [4.0, 4.0, 0.0, None, 0.0]}
+
+
+@pytest.mark.parametrize("inner", [pa.int64(), pa.uint8(), pa.decimal128(38, 0)])
+def test_list_sum_exact_types_raise(inner: pa.DataType) -> None:
+    lf = list_frame([[2**53 + 1, 1]] if inner == pa.int64() else [[1, 2]], inner)
+    with pytest.raises(NotImplementedError, match=r"`list\.sum` on `list<item: .*DataFusion"):
+        to_dict(lf.select(nw.col("l").list.sum()))
+
+
+@pytest.mark.parametrize("method", ["tail", "gather_every"])
+def test_v1_row_selection_is_declared(method: str) -> None:
+    import narwhals.stable.v1 as nw_v1
+
+    lf = nw_v1.from_native(df_native())
+    with pytest.raises(NotImplementedError, match=method):
+        getattr(lf, method)(2)
+
+
+def test_list_sum_non_list_raises() -> None:
+    lf = list_frame([[1.0]], pa.float64())
+    with pytest.raises(NotImplementedError, match=r"`list\.sum` on `int64`"):
+        to_dict(lf.select(nw.col("i").list.sum()))
+
+
 def test_dt_subsecond_parts() -> None:
     # `date_part('millisecond')` etc. include whole seconds
     native = SessionContext().from_arrow(
@@ -398,8 +543,6 @@ def test_dt_replace_time_zone_utc_and_none() -> None:
     naive = aware.select(nw.col("t").dt.replace_time_zone(None))
     assert naive.collect_schema()["t"] == nw.Datetime("us", None)
     assert to_dict(naive)["t"] == [dt.datetime(2024, 3, 5, 10)]
-    with pytest.raises(NotImplementedError, match="non-UTC"):
-        lf.select(nw.col("t").dt.replace_time_zone("Europe/Berlin"))
 
 
 def test_dt_truncate_multiples() -> None:
@@ -507,8 +650,6 @@ def test_literal_only_select() -> None:
 def test_documented_refusals() -> None:
     # deliberate refusals, listed in docs/api-coverage.md
     lf = nw.from_native(df_native())
-    with pytest.raises(NotImplementedError, match="n_unique"):
-        lf.select(nw.col("a").n_unique().over("b"))
     with pytest.raises(NotImplementedError, match="limit"):
         lf.select(nw.col("a").fill_null(strategy="forward", limit=1).over(order_by="c"))
     with pytest.raises(NotImplementedError, match="keep='all'"):

@@ -21,6 +21,10 @@ from narwhals._utils import not_implemented
 from narwhals_datafusion.utils import lit
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from datafusion.expr import Expr
+
     from narwhals_datafusion.expr import DataFusionExpr
 
 # narwhals interval unit -> `date_trunc` precision
@@ -94,7 +98,7 @@ class DataFusionExprDateTimeNamespace(SQLExprDateTimeNamesSpace["DataFusionExpr"
         match (interval.multiple, interval.unit):
             case (1, unit) if unit in UNITS_DICT:
                 precision = UNITS_DICT[unit]
-                return self.compliant._with_elementwise(lambda expr: F.date_trunc(precision, expr))
+                return self._floor(lambda expr: F.date_trunc(precision, expr), wall_time=False)
             case (multiple, unit) if unit in MONTHS_PER_UNIT:
                 stride = (multiple * MONTHS_PER_UNIT[unit], 0, 0)
             case (multiple, "d"):
@@ -106,26 +110,41 @@ class DataFusionExprDateTimeNamespace(SQLExprDateTimeNamesSpace["DataFusionExpr"
                 raise NotImplementedError(msg)
         # multiples: `date_bin` anchored at the epoch, polars semantics
         stride_lit = lit(pa.scalar(stride, type=pa.month_day_nano_interval()))
+        # an ns origin keeps the input unit but nulls values past 2262; this one raises
         origin = lit(pa.scalar(dt.datetime(1970, 1, 1), type=pa.timestamp("us")))
-        return self.compliant._with_elementwise(lambda expr: F.date_bin(stride_lit, expr, origin))
+        return self._floor(lambda expr: F.date_bin(stride_lit, expr, origin), wall_time=True)
+
+    def _floor(self, floor: Callable[[Expr], Expr], *, wall_time: bool) -> DataFusionExpr:
+        """Apply ``floor`` keeping the input type; ``wall_time`` floors an aware input locally."""
+
+        def func(expr: Expr, dtype: pa.DataType) -> Expr:
+            if wall_time and pa.types.is_timestamp(dtype) and dtype.tz is not None:
+                # `date_bin` bins an aware timestamp in UTC: bin the wall time, cast re-attaches
+                expr = F.to_local_time(expr)
+            # `date_trunc` and `date_bin` return Timestamp(ns) for a Date, `date_bin` for any unit
+            return floor(expr).cast(dtype)
+
+        return self.compliant._with_native_dtype(func, elementwise=True)
 
     def replace_time_zone(self, time_zone: str | None) -> DataFusionExpr:
-        """Attach or drop a zone, keeping the wall time; only ``None`` and ``"UTC"``."""
+        """Attach, change or drop the zone, keeping the wall time."""
         if time_zone is None:
-            return self.compliant._with_elementwise(lambda expr: expr.cast(pa.timestamp("us")))
-        if time_zone == "UTC":
-            # wall time equals UTC time: attaching the zone is a plain cast
-            return self.compliant._with_elementwise(
-                lambda expr: expr.cast(pa.timestamp("us")).cast(pa.timestamp("us", tz="UTC"))
-            )
-        msg = "`replace_time_zone` with a non-UTC time zone is not supported for DataFusion."
-        raise NotImplementedError(msg)
+            return self.compliant._with_elementwise(F.to_local_time)
+
+        def func(expr: Expr, dtype: pa.DataType) -> Expr:
+            return F.to_local_time(expr).cast(pa.timestamp(dtype.unit, time_zone))
+
+        return self.compliant._with_native_dtype(func, elementwise=True)
 
     def convert_time_zone(self, time_zone: str) -> DataFusionExpr:
-        """Change the zone, keeping the instant."""
-        return self.compliant._with_elementwise(
-            lambda expr: expr.cast(pa.timestamp("us", tz=time_zone))
-        )
+        """Change the zone, keeping the instant; a naive input is read as UTC."""
+
+        def func(expr: Expr, dtype: pa.DataType) -> Expr:
+            # a cast from naive keeps the wall time: attach UTC first
+            utc = expr.cast(pa.timestamp(dtype.unit, "UTC"))
+            return utc.cast(pa.timestamp(dtype.unit, time_zone))
+
+        return self.compliant._with_native_dtype(func, elementwise=True)
 
     offset_by = not_implemented()
     timestamp = not_implemented()

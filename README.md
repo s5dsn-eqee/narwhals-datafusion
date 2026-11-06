@@ -53,9 +53,9 @@ plan. Dtypes are pyarrow end-to-end.
 ## Compatibility
 
 - Python `>=3.10`; tested on 3.12.
-- `datafusion>=54,<55`: capped at the tested major; a release moves the cap.
+- `datafusion>=55,<56`: capped at the tested major; a release moves the cap.
 - `narwhals>=2.27`: floor only; tested on 2.28, the `narwhals/` submodule.
-- `datafusion-extra-functions-ffi>=0.1` (extra): each shim minor pins its
+- `datafusion-extra-functions>=0.5.5` (extra): each release pins its
   datafusion major.
 - Weekly, `compat.yml` (the badge): both suites on the newest narwhals release
   inside the datafusion cap, extra included.

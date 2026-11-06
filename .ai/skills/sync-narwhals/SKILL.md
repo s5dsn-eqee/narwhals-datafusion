@@ -69,7 +69,7 @@ changed and the regex needs updating. Never commit an emptied list.
 | Changed internal contract | failure inside `narwhals/_sql` or `_compliant` | fix to the new contract; read the DuckDB backend's diff for that release |
 | Engine bug or gap | DataFusion error text | workaround plus `datafusion-workarounds` entry, or `NotImplementedError` |
 | Order-dependent or CI-only | passes on rerun, asserts row order without sort, or asserts only under `CI=true` | `ALWAYS_DESELECTED` in `run_tests.py` with a comment; the regenerator leaves it alone |
-| Needs the extra | passes with the shim, `NotImplementedError` naming the extra without it | `TESTS_NEED_EXTRA` in `run_tests.py`; deselected only when the shim is absent |
+| Needs the extra | passes with the extra, `NotImplementedError` naming the extra without it | `TESTS_NEED_EXTRA` in `run_tests.py`; deselected only when the extra is absent |
 
 For each name that left the list, confirm it passes for the right reason and
 move its coverage cell if a caveat no longer applies. One failure in full:
