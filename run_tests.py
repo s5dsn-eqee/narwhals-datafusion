@@ -50,8 +50,6 @@ TESTS_THAT_NEED_FIX: list[str] = [
     "test_quantile_expr",
     "test_rank_with_order_by",
     "test_rank_with_order_by_and_partition_by",
-    "test_rename_duplicate_raises",
-    "test_rename_duplicate_raises_with_followup_op",
     "test_replace_strict_expr_basic",
     "test_scan_csv",
     "test_scan_parquet",

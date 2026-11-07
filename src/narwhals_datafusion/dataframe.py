@@ -11,6 +11,7 @@ from narwhals._sql.dataframe import SQLLazyFrame
 from narwhals._utils import (
     Implementation,
     Version,
+    check_column_names_are_unique,
     extend_bool,
     generate_temporary_column_name,
     not_implemented,
@@ -243,6 +244,7 @@ class DataFusionLazyFrame(
         return self._with_native(self.native.filter(keep_condition))
 
     def rename(self, mapping: Mapping[str, str]) -> Self:
+        check_column_names_are_unique([mapping.get(name, name) for name in self.columns])
         selection = (
             col(name).alias(mapping[name]) if name in mapping else col(name)
             for name in self.columns

@@ -9,6 +9,7 @@ import pytest
 from datafusion import SessionContext, col, lit
 from datafusion import functions as F
 from datafusion.expr import Window
+from narwhals.exceptions import DuplicateError
 
 import narwhals as nw
 
@@ -79,6 +80,15 @@ def test_concat_returns_every_row_in_some_order() -> None:
     """`union` output order: nondeterministic, so only the rows are asserted, not their order."""
     frames = [nw.from_native(native({"x": [i]})) for i in range(8)]
     assert sorted(collect(nw.concat(frames))["x"]) == list(range(8))
+
+
+def test_rename_into_a_taken_name_raises_duplicate() -> None:
+    """`rename`: a taken name is an engine planning error; the plugin raises `DuplicateError`."""
+    df = native({"a": [1], "b": [2]})
+    with pytest.raises(Exception, match="would be ambiguous"):
+        df.select(col("a").alias("b"), col("b"))
+    with pytest.raises(DuplicateError):
+        nw.from_native(df).rename({"a": "b"})
 
 
 def test_sink_parquet_rejects_file_objects(tmp_path, monkeypatch) -> None:
