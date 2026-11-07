@@ -91,6 +91,18 @@ def test_rename_into_a_taken_name_raises_duplicate() -> None:
         nw.from_native(df).rename({"a": "b"})
 
 
+def test_top_k_plans_a_top_k_sort() -> None:
+    """`top_k`: a `row_number() <= k` filter sorts every row; `sort` + `limit` plans a TopK."""
+    df = native({"x": [3, 1, None, 2]})
+    order = [col("x").sort(ascending=False, nulls_first=False)]
+    ranked = df.select(col("x"), F.row_number().over(Window(order_by=order)).alias("r"))
+    plan = ranked.filter(col("r") <= lit(2)).execution_plan().display_indent()
+    assert "TopK" not in plan, ENGINE_CHANGED
+    result = nw.from_native(df).top_k(2, by="x")
+    assert "TopK(fetch=2)" in result.to_native().execution_plan().display_indent()
+    assert sorted(collect(result)["x"]) == [2, 3]
+
+
 def test_sink_parquet_rejects_file_objects(tmp_path, monkeypatch) -> None:
     """`sink_parquet`: `write_parquet` turns a buffer into a filename; the plugin raises."""
     monkeypatch.chdir(tmp_path)

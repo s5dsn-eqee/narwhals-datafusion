@@ -276,17 +276,12 @@ class DataFusionLazyFrame(
             descending = extend_bool(not reverse, len(by))
         else:
             descending = tuple(not rev for rev in reverse)
-        tmp_name = generate_temporary_column_name(8, self.columns, prefix="top_k_")
-        rank = window_expression(
-            F.row_number(),
-            order_by=by,
-            descending=descending,
-            nulls_last=extend_bool(True, len(by)),
-        )
-        with_rank = self.native.select(*(col(name) for name in self.columns), rank.alias(tmp_name))
-        return self._with_native(with_rank.filter(col(tmp_name) <= lit(k))).drop(
-            [tmp_name], strict=False
-        )
+        # a `row_number() <= k` filter sorts every row; `sort` + `limit` plans `SortExec: TopK`
+        keys = [
+            sort_expr(name, descending=desc, nulls_last=True)
+            for name, desc in zip(by, descending, strict=True)
+        ]
+        return self._with_native(self.native.sort(*keys).limit(k))
 
     def unique(
         self,

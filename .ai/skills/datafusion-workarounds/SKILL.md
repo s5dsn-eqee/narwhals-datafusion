@@ -92,6 +92,7 @@ grep -rn "^\s*# " src/narwhals_datafusion/*.py
 | `concat` by name | `union` is positional. `concat` uses `union_by_name`, which also fills missing columns with null, so both modes share one path. | [`test_concat_diagonal_matches_columns_by_name`][t-frames] | [`namespace.concat`][namespace] |
 | `union` order | Output order is nondeterministic (one partition per input); not pinnable, the test checks rows only. Tests asserting order after `concat` without a sort go in `ALWAYS_DESELECTED`. | [`test_concat_returns_every_row_in_some_order`][t-frames] | [`run_tests.py`][run_tests] |
 | `rename` duplicates | A taken name is a planning error (`would be ambiguous`, `Projections require unique expression names`). `rename` checks the new names first and raises `DuplicateError`, as duckdb does. | [`test_rename_into_a_taken_name_raises_duplicate`][t-frames] | [`dataframe.rename`][dataframe] |
+| `top_k` | A `row_number() <= k` filter sorts every row; the optimizer does not rewrite it. `top_k` is `sort` + `limit`, planned as `SortExec: TopK(fetch=k)`. | [`test_top_k_plans_a_top_k_sort`][t-frames] | [`dataframe.top_k`][dataframe] |
 | `sink_parquet` target | `write_parquet` takes a path and `str()`s anything else into a file name. `sink_parquet` raises for non-path inputs. | [`test_sink_parquet_rejects_file_objects`][t-frames] | [`dataframe.sink_parquet`][dataframe] |
 | `with_row_index` | `row_number` is UInt64; minus an Int64 literal coerces to Decimal. Cast to Int64 first. | [`test_with_row_index_is_int64`][t-frames] | [`dataframe.with_row_index`][dataframe] |
 
