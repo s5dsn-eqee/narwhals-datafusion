@@ -39,7 +39,6 @@ TESTS_THAT_NEED_FIX: list[str] = [
     "test_mode_expr_keep_any_nulls",
     "test_mode_group_by_nulls",
     "test_mode_over_nulls",
-    "test_nan_non_float",
     "test_native_namespace_frame",
     "test_offset_by",
     "test_offset_by_3471",

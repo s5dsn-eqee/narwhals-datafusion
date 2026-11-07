@@ -9,6 +9,7 @@ import pyarrow as pa
 import pytest
 from datafusion import SessionContext, col, lit
 from datafusion import functions as F
+from narwhals.exceptions import InvalidOperationError
 
 import narwhals as nw
 
@@ -23,6 +24,15 @@ def native(data: dict):
 
 def collect(lf: nw.LazyFrame) -> dict:
     return lf.collect(backend="pyarrow").to_dict(as_series=False)
+
+
+def test_is_nan_on_strings_raises_invalid_operation() -> None:
+    """`is_nan`: `isnan` rejects strings while planning; the plugin raises narwhals' error."""
+    df = native({"s": ["x"]})
+    with pytest.raises(Exception, match="Function 'isnan' requires Numeric"):
+        df.select(F.isnan(col("s")))
+    with pytest.raises(InvalidOperationError, match="`is_nan`"):
+        nw.from_native(df).select(nw.col("s").is_nan())
 
 
 @pytest.mark.parametrize(

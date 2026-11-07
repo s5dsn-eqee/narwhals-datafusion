@@ -19,7 +19,7 @@ from narwhals._arrow.utils import (
 )
 from narwhals._expression_parsing import evaluate_output_names_and_aliases
 from narwhals._utils import extend_bool
-from narwhals.exceptions import ColumnNotFoundError, DuplicateError
+from narwhals.exceptions import ColumnNotFoundError, DuplicateError, InvalidOperationError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
@@ -292,6 +292,8 @@ def catch_datafusion_exception(
             return DuplicateError(
                 f"Expected unique column names, got duplicates in projection.\n\n{message}"
             )
+        case None if "Function 'isnan' requires Numeric" in message:
+            return InvalidOperationError(f"`is_nan` requires a numeric column.\n\n{message}")
         case _:
             return exception
 
