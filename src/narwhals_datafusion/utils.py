@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import datafusion
 import pyarrow as pa
+import pyarrow.compute as pc
 from datafusion import functions as F
 from datafusion import lit
 from datafusion.expr import Expr, Window, WindowFrame
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
 __all__ = [
     "BACKEND_VERSION",
     "catch_datafusion_exception",
+    "check_list_item",
     "col",
     "evaluate_exprs_and_aliases",
     "floor_mod",
@@ -201,6 +203,22 @@ def function(name: str, *args: Any) -> Expr:
         return remapped(*args)
     native = getattr(F, name)
     return native(*(_ensure_expr(arg) for arg in args))
+
+
+def check_list_item(item: Any, list_dtype: pa.DataType) -> None:
+    """Raise ``InvalidOperationError`` if ``item`` cannot be compared with the list's elements."""
+    value_type = getattr(list_dtype, "value_type", None)
+    if item is None or value_type is None:
+        return
+    # pyarrow has no `string_view` comparison kernel
+    if pa.types.is_string_view(value_type):
+        value_type = pa.string()
+    try:
+        # one null, not an empty array: pyarrow skips its time zone check on those
+        pc.call_function("equal", [pa.nulls(1, value_type), pa.scalar(item)])
+    except (pa.ArrowInvalid, pa.ArrowNotImplementedError, pa.ArrowTypeError) as e:
+        msg = f"`list.contains` cannot compare {item!r} with `{value_type}` elements."
+        raise InvalidOperationError(msg) from e
 
 
 def sort_expr(

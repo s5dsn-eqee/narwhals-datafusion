@@ -14,8 +14,6 @@ from pathlib import Path
 
 TESTS_THAT_NEED_FIX: list[str] = [
     "test_cast_to_enum_vmain",
-    "test_contains_invalid_item_raises",
-    "test_contains_invalid_item_raises_without_rows",
     "test_drop_nulls_agg",
     "test_duration_attributes",
     "test_duration_attributes_nano",

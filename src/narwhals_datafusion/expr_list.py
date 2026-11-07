@@ -8,7 +8,7 @@ from narwhals._compliant import LazyExprNamespace
 from narwhals._compliant.any_namespace import ListNamespace
 from narwhals._utils import not_implemented
 
-from narwhals_datafusion.utils import lit, when
+from narwhals_datafusion.utils import check_list_item, lit, when
 
 if TYPE_CHECKING:
     from datafusion.expr import Expr
@@ -37,9 +37,12 @@ class DataFusionExprListNamespace(
         # list form plans to the same single projection, `make_array` folded:
         #   ProjectionExec: expr=[array_has_any(l@0, [2]) as r]
         #     DataSourceExec: partitions=1, partition_sizes=[1]
-        return self.compliant._with_elementwise(
-            lambda expr: F.array_has_any(expr, F.make_array(lit(item)))
-        )
+        def checked(expr: Expr, dtype: pa.DataType) -> Expr:
+            # `make_array` coerces a mismatched item (`"2"` finds 2); polars raises
+            check_list_item(item, dtype)
+            return F.array_has_any(expr, F.make_array(lit(item)))
+
+        return self.compliant._with_native_dtype(checked, elementwise=True)
 
     def get(self, index: int) -> DataFusionExpr:
         """Element at zero-based ``index``; ``array_element`` counts from one."""

@@ -6,6 +6,7 @@ import datetime as dt
 from decimal import Decimal
 
 import pyarrow as pa
+import pyarrow.compute as pc
 import pytest
 from datafusion import Expr, SessionContext, col, lit
 from datafusion import functions as F
@@ -108,6 +109,25 @@ def test_list_contains_matches_null_and_coerces_decimal() -> None:
         n=nw.col("l").list.contains(None), d=nw.col("d").list.contains(Decimal("1.5"))
     )
     assert collect(result) == {"n": [True, False, False, None], "d": [True, False, False, None]}
+
+
+def test_list_contains_rejects_a_mismatched_item() -> None:
+    """`list.contains`: `make_array` coerces a mismatched item (`"2"` finds 2); polars raises."""
+    df = native(
+        {
+            "l": pa.array([[2, 3], [1]], pa.list_(pa.int64())),
+            "s": pa.array([["x"], []], pa.list_(pa.string_view())),
+        }
+    )
+    engine = df.select(F.array_has_any(col("l"), F.make_array(lit("2"))).alias("r")).to_pydict()
+    assert engine == {"r": [True, False]}, ENGINE_CHANGED
+    with pytest.raises(pa.ArrowNotImplementedError):
+        pc.equal(pa.nulls(1, pa.string_view()), pa.scalar("x"))
+    lf = nw.from_native(df)
+    for item in (True, "2"):
+        with pytest.raises(InvalidOperationError):
+            lf.select(nw.col("l").list.contains(item))
+    assert collect(lf.select(nw.col("s").list.contains("x"))) == {"s": [True, False]}
 
 
 def test_scalar_arguments_need_lit() -> None:
