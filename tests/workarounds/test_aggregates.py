@@ -37,11 +37,16 @@ def extra(name: str):
 
 
 def test_n_unique_counts_null() -> None:
-    """`n_unique`: `count_distinct` skips nulls; the plugin counts one."""
+    """`n_unique`: `count_distinct` skips nulls; `max`/`sum` over no rows are null."""
     df = native({"x": [1, None, 1]})
     engine = df.aggregate([], [F.count(col("x"), distinct=True).alias("n")]).to_pydict()
     assert engine == {"n": [1]}, ENGINE_CHANGED
     assert collect(nw.from_native(df).select(nw.col("x").n_unique())) == {"x": [2]}
+    empty = native({"x": pa.array([], pa.int64())})
+    aggregates = [F.max(col("x")).alias("m"), F.sum(col("x")).alias("s")]
+    assert empty.aggregate([], aggregates).to_pydict() == {"m": [None], "s": [None]}, ENGINE_CHANGED
+    result = nw.from_native(empty).select(u=nw.col("x").n_unique(), n=nw.col("x").null_count())
+    assert collect(result) == {"u": [0], "n": [0]}
 
 
 def test_literal_only_aggregate_keeps_its_node() -> None:

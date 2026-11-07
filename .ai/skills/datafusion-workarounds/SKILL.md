@@ -50,7 +50,7 @@ grep -rn "^\s*# " src/narwhals_datafusion/*.py
 
 | Name | Description | Test | Link |
 |---|---|---|---|
-| `n_unique` nulls | `count_distinct` skips nulls, narwhals counts one. `n_unique` adds `max(isnull)`. | [`test_n_unique_counts_null`][t-agg] | [`expr.n_unique`][expr] |
+| `n_unique` nulls | `count_distinct` skips nulls, narwhals counts one; `max` and `sum` over no rows are null. `n_unique` adds `max(isnull)`, coalesced to 0; `null_count` is narwhals' `sum`, which coalesces. | [`test_n_unique_counts_null`][t-agg] | [`expr.n_unique`][expr] |
 | Literal-only `aggregate` | `simplify_expressions` drops an aggregate of literals only (`nw.len()` too) and collect fails. `aggregate` adds a `count_star` and projects it away. | [`test_literal_only_aggregate_keeps_its_node`][t-agg] | [`dataframe.aggregate`][dataframe] |
 | Extra missing | `mode`, `skew`, `kurtosis` come from [datafusion-extra-functions][crate]; without it they raise `NotImplementedError` naming the extra. | [`test_without_extra_points_at_it`][t-extra] | [`extra_udaf`][extra_functions] |
 | `skew` bias | The crate's `skewness` is bias-adjusted. `_correct` undoes it and pins n=0/1/2. | [`test_skew_undoes_bias_adjustment`][t-agg] | [`expr.skew`][expr] |

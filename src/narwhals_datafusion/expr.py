@@ -320,7 +320,7 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
             return F_(
                 "add",
                 F_("count_distinct", expr),
-                F_("max", self._when(F_("isnull", expr), one, zero)),
+                self._coalesce(F_("max", self._when(F_("isnull", expr), one, zero)), zero),
             )
 
         def window_f(df: DataFusionLazyFrame, inputs: DataFusionWindowInputs) -> Sequence[Expr]:
@@ -337,7 +337,7 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
         return self._with_callable(lambda _expr: F.count_star())
 
     def null_count(self) -> Self:
-        return self._with_callable(lambda expr: F.sum(expr.is_null().cast(pa.int64())))
+        return self.is_null().cast(self._version.dtypes.Int64()).sum()
 
     def is_nan(self) -> Self:
         return self._with_elementwise(F.isnan)
