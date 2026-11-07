@@ -10,6 +10,7 @@ a row goes in the same commit as the change that lifts it.
 | Lazy-expression gaps | narwhals' `LazyExpr` does not implement `Expr.ewm_mean` or `Expr.map_batches`; they raise `NotImplementedError` on every lazy backend. | [`test_lazy_layer_gaps_raise`][t-limits] | [`LazyExpr`][nw-lazyexpr] |
 | SQL-layer gaps | narwhals' `SQLExpr` does not implement `Expr.filter`, `Expr.drop_nulls` or `Expr.unique`; they raise `NotImplementedError` on every SQL backend. | [`test_lazy_layer_gaps_raise`][t-limits] | [`SQLExpr`][nw-sqlexpr] |
 | `stable.v1` row selection | `LazyFrame.tail` and `LazyFrame.gather_every` exist only in `narwhals.stable.v1`, and no SQL backend implements them; they raise `NotImplementedError`. | [`test_v1_row_selection_is_declared`][t-limits] | [`stable.v1.LazyFrame`][nw-v1], [`dataframe.py`][dataframe] |
+| Vertical `concat` by name | `concat(how="vertical")` matches columns by name, so the same columns in a different order are aligned; polars raises. | [`test_concat_vertical_and_diagonal`][t-smoke] | [`namespace.concat`][namespace] |
 | Row order | Row order is guaranteed only after `sort`; `concat` may interleave its inputs. | [`test_concat_returns_every_row_in_some_order`][t-frames] | [`namespace.concat`][namespace] |
 | Scan by plugin name | `nw.scan_csv`/`nw.scan_parquet` take `backend="narwhals-datafusion"` on narwhals 2.28+. On 2.27, read with a `SessionContext` and pass the frame to `nw.from_native`. | [`test_scan_through_plugin_name`][t-smoke] | [`namespace.py`][namespace] |
 
