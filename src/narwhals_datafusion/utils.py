@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import operator
 import re
+from contextlib import contextmanager
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
@@ -21,7 +22,7 @@ from narwhals._utils import extend_bool
 from narwhals.exceptions import ColumnNotFoundError, DuplicateError
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Iterator, Sequence
 
     from datafusion import SessionContext
     from datafusion.expr import SortExpr
@@ -46,6 +47,7 @@ __all__ = [
     "quote",
     "session_context",
     "sort_expr",
+    "translate_errors",
     "when",
     "window_expression",
 ]
@@ -292,3 +294,12 @@ def catch_datafusion_exception(
             )
         case _:
             return exception
+
+
+@contextmanager
+def translate_errors(frame: CompliantLazyFrameAny, /) -> Iterator[None]:
+    """Re-raise a DataFusion error from the block as its narwhals exception."""
+    try:
+        yield
+    except Exception as e:
+        raise catch_datafusion_exception(e, frame) from None

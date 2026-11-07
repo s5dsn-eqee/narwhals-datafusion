@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from narwhals._sql.group_by import SQLGroupBy
 
-from narwhals_datafusion.utils import catch_datafusion_exception, col
+from narwhals_datafusion.utils import col, translate_errors
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -38,10 +38,8 @@ class DataFusionGroupBy(SQLGroupBy["DataFusionLazyFrame", "DataFusionExpr", "Exp
         """Aggregate ``exprs`` per key group."""
         frame = self.compliant
         agg_columns = list(self._evaluate_exprs(exprs))
-        try:
+        with translate_errors(frame):
             native = frame.native.aggregate([col(key) for key in self._keys], agg_columns)
-        except Exception as e:
-            raise catch_datafusion_exception(e, frame) from None
         return frame._with_native(native).rename(
             dict(zip(self._keys, self._output_key_names, strict=True))
         )

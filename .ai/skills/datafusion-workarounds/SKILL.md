@@ -35,7 +35,7 @@ grep -rn "^\s*# " src/narwhals_datafusion/*.py
 |---|---|---|---|
 | Identifier parsing | `datafusion.col()` parses SQL: unquoted names are lower-cased (with `a` and `A`, `col("A")` silently gives `a`) and a dot splits off a qualifier. Use `utils.col()`, which quotes. | [`test_col_matches_names_exactly`][t-names] | [`utils.col`][utils] |
 | Name-string APIs | `unnest_columns` and `join(on=...)` parse names the same way. Pass `utils.quote(name)`; joins use `join_on` with `col()` keys. | [`test_name_string_apis_get_quoted_names`][t-names] | [`dataframe.explode`][dataframe], [`dataframe.join`][dataframe] |
-| Missing-column errors | Engine errors quote the name only when it needs quoting. `catch_datafusion_exception` strips it for `ColumnNotFoundError`; wrap native calls that can fail on a missing column in `raise catch_datafusion_exception(e, self) from None` (`select`, `with_columns`, `filter`, `sort`, `aggregate`, `group_by().agg()`). `join` checks its keys with `_check_columns_exist`. | [`test_missing_column_error_names_column_as_given`][t-names] | [`utils.catch_datafusion_exception`][utils] |
+| Missing-column errors | Engine errors quote the name only when it needs quoting. `catch_datafusion_exception` strips it for `ColumnNotFoundError`; wrap native calls that can fail on a missing column in `with translate_errors(self):` (`select`, `with_columns`, `filter`, `sort`, `aggregate`, `group_by().agg()`). `join` checks its keys with `_check_columns_exist`. | [`test_missing_column_error_names_column_as_given`][t-names] | [`utils.catch_datafusion_exception`][utils] |
 
 ## Literals and operators
 

@@ -21,13 +21,13 @@ from narwhals.exceptions import InvalidOperationError
 
 from narwhals_datafusion.utils import (
     BACKEND_VERSION,
-    catch_datafusion_exception,
     col,
     evaluate_exprs_and_aliases,
     lit,
     native_to_narwhals_dtype,
     quote,
     sort_expr,
+    translate_errors,
     window_expression,
 )
 
@@ -189,7 +189,7 @@ class DataFusionLazyFrame(
         """Reduce the whole frame to one row of aggregates."""
         pairs = evaluate_exprs_and_aliases(self, *exprs)
         selection = [value.alias(name) for name, value in pairs]
-        try:
+        with translate_errors(self):
             if all(expr._metadata.is_literal for expr in exprs):
                 # the optimizer drops an aggregate made of literals only; `count_star` keeps it
                 # and, once projected away, costs nothing. Physical plan:
@@ -200,16 +200,12 @@ class DataFusionLazyFrame(
                 native = native.select(*(col(name) for name, _ in pairs))
             else:
                 native = self.native.aggregate([], selection)
-        except Exception as e:
-            raise catch_datafusion_exception(e, self) from None
         return self._with_native(native)
 
     def select(self, *exprs: DataFusionExpr) -> Self:
         selection = [value.alias(name) for name, value in evaluate_exprs_and_aliases(self, *exprs)]
-        try:
+        with translate_errors(self):
             return self._with_native(self.native.select(*selection))
-        except Exception as e:
-            raise catch_datafusion_exception(e, self) from None
 
     def with_columns(self, *exprs: DataFusionExpr) -> Self:
         """Add or replace columns in place; new ones go last."""
@@ -219,17 +215,13 @@ class DataFusionLazyFrame(
             for name in self.columns
         ]
         result.extend(value.alias(name) for name, value in new_columns_map.items())
-        try:
+        with translate_errors(self):
             return self._with_native(self.native.select(*result))
-        except Exception as e:
-            raise catch_datafusion_exception(e, self) from None
 
     def _filter(self, predicate: DataFusionExpr) -> Self:
         mask = predicate(self)[0]
-        try:
+        with translate_errors(self):
             return self._with_native(self.native.filter(mask))
-        except Exception as e:
-            raise catch_datafusion_exception(e, self) from None
 
     def drop(self, columns: Sequence[str], *, strict: bool) -> Self:
         columns_to_drop = parse_columns_to_drop(self, columns, strict=strict)
@@ -264,10 +256,8 @@ class DataFusionLazyFrame(
             sort_expr(name, descending=desc, nulls_last=nulls_last)
             for name, desc in zip(by, descending_flags, strict=True)
         ]
-        try:
+        with translate_errors(self):
             return self._with_native(self.native.sort(*keys))
-        except Exception as e:
-            raise catch_datafusion_exception(e, self) from None
 
     def top_k(self, k: int, *, by: Iterable[str], reverse: bool | Sequence[bool]) -> Self:
         """The ``k`` rows with the largest ``by`` values; ``reverse`` takes the smallest."""
@@ -355,10 +345,8 @@ class DataFusionLazyFrame(
             for name, tmp in tmp_names.items()
             if name not in dropped
         ]
-        try:
+        with translate_errors(self):
             return self._with_native(joined.select(*selection))
-        except Exception as e:
-            raise catch_datafusion_exception(e, self) from None
 
     def explode(self, columns: Sequence[str]) -> Self:
         """One row per list element; an empty or null list gives one row with null."""
