@@ -146,6 +146,23 @@ def test_to_datetime_offset_format_is_utc_aware() -> None:
     assert collect(result) == {"s": [dt.datetime(2024, 3, 5, 8, tzinfo=dt.timezone.utc), None]}
 
 
+@pytest.mark.parametrize(
+    ("fmt", "value", "unit"),
+    [
+        ("%Y-%m-%d %H:%M:%S", "2024-03-05 10:00:00", "us"),
+        ("%Y-%m-%d %H:%M:%S%.3f", "2024-03-05 10:00:00.123", "ms"),
+        ("%Y-%m-%d %H:%M:%S%.9f", "2024-03-05 10:00:00.123456789", "ns"),
+    ],
+)
+def test_to_datetime_unit_follows_the_format(fmt: str, value: str, unit: str) -> None:
+    """`str.to_datetime`: `to_timestamp` is always ns; polars takes `%.3f`/`%.9f`, else us."""
+    df = native({"s": [value]})
+    parsed = df.select(F.to_timestamp(col("s"), lit(fmt)).alias("t"))
+    assert parsed.schema().field("t").type == pa.timestamp("ns"), ENGINE_CHANGED
+    result = nw.from_native(df).select(nw.col("s").str.to_datetime(fmt))
+    assert result.collect_schema()["s"] == nw.Datetime(unit)
+
+
 def test_to_datetime_without_format_raises() -> None:
     """`str.to_datetime`: `to_timestamp` infers no format polars would; the plugin requires one."""
     df = native({"s": ["2024/03/05 10:00:00"]})

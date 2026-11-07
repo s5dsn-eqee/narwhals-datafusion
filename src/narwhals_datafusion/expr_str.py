@@ -40,12 +40,13 @@ class DataFusionExprStringNamespace(SQLExprStringNamespace["DataFusionExpr"]):
             msg = "Cannot infer format with DataFusion, please specify `format` explicitly."
             raise NotImplementedError(msg)
 
-        if "%z" in format or "%Z" in format:
-            # `%z`/`%Z` parse to UTC but return a naive timestamp: re-attach the zone
-            return self.compliant._with_elementwise(
-                lambda expr: F.to_timestamp(expr, lit(format)).cast(pa.timestamp("us", tz="UTC"))
-            )
-        return self.compliant._with_elementwise(lambda expr: F.to_timestamp(expr, lit(format)))
+        # `to_timestamp` is always ns; polars takes the unit from `%.3f`/`%.9f`, else us
+        unit = "ms" if "%.3f" in format else "ns" if "%.9f" in format else "us"
+        # `%z`/`%Z` parse to UTC but return a naive timestamp: re-attach the zone
+        tz = "UTC" if "%z" in format or "%Z" in format else None
+        return self.compliant._with_elementwise(
+            lambda expr: F.to_timestamp(expr, lit(format)).cast(pa.timestamp(unit, tz=tz))
+        )
 
     def to_date(self, format: str | None) -> DataFusionExpr:
         """Parse with ``format``, or cast when none is given."""

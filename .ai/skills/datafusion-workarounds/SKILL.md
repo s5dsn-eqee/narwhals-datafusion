@@ -111,6 +111,7 @@ grep -rn "^\s*# " src/narwhals_datafusion/*.py
 | `Enum` casts | narwhals' Arrow dtype mapping raises for `Enum` naming PyArrow. `narwhals_to_native_dtype` raises first, naming DataFusion (narwhals' own message under `stable.v1`). | [`test_enum_cast_names_the_backend`][t-dtypes] | [`utils.narwhals_to_native_dtype`][utils] |
 | `is_nan` input | `isnan` rejects non-numeric input while planning. `catch_datafusion_exception` turns that error into `InvalidOperationError`. | [`test_is_nan_on_strings_raises_invalid_operation`][t-dtypes] | [`utils.catch_datafusion_exception`][utils] |
 | `to_datetime` format | The engine cannot infer a format. `to_datetime` requires one. | [`test_to_datetime_without_format_raises`][t-dtypes] | [`expr_str.to_datetime`][expr_str] |
+| `to_datetime` unit | `to_timestamp` always returns ns. Polars takes the unit from the format: `%.3f` ms, `%.9f` ns, else us; `to_datetime` casts to it. | [`test_to_datetime_unit_follows_the_format`][t-dtypes] | [`expr_str.to_datetime`][expr_str] |
 | `to_datetime` offsets | A `%z`/`%Z` format parses to UTC but returns a naive timestamp. The zone is re-attached. | [`test_to_datetime_offset_format_is_utc_aware`][t-dtypes] | [`expr_str.to_datetime`][expr_str] |
 
 ## Where the truth is
