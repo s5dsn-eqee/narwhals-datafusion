@@ -279,8 +279,14 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
         return self._with_elementwise(invert)
 
     def __neg__(self) -> Self:
-        # `Expr` has no unary minus
-        return self._with_elementwise(lambda expr: lit(-1) * expr)
+        # `Expr` has no unary minus; `-1 * x` widens ints and rejects durations
+        def negate(expr: Expr, dtype: pa.DataType) -> Expr:
+            if pa.types.is_unsigned_integer(dtype):
+                msg = f"`-` on unsigned `{dtype}` is not supported: `0 - x` wraps around."
+                raise InvalidOperationError(msg)
+            return lit(0).cast(dtype) - expr
+
+        return self._with_native_dtype(negate, elementwise=True)
 
     def __pow__(self, other: Self) -> Self:
         # `Expr` has no `**`

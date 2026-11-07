@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from decimal import Decimal
 
 import pyarrow as pa
 import pytest
 from datafusion import Expr, SessionContext, col, lit
 from datafusion import functions as F
+from narwhals.exceptions import InvalidOperationError
 
 import narwhals as nw
 
@@ -46,6 +48,30 @@ def test_arithmetic_follows_python(engine, pinned, expr: nw.Expr, expected: list
     df = native({"a": [7, -7], "b": [2, 2]})
     assert engine(df) == pinned, ENGINE_CHANGED
     assert collect(nw.from_native(df).select(r=expr)) == {"r": expected}
+
+
+def test_neg_keeps_the_input_type() -> None:
+    """`__neg__`: `-1 * x` widens int8 and rejects durations; a typed `0 - x` wraps unsigned."""
+    second = dt.timedelta(seconds=1)
+    df = native(
+        {
+            "i": pa.array([1, -2], pa.int8()),
+            "d": pa.array([second, second], pa.duration("us")),
+            "u": pa.array([1, 2], pa.uint8()),
+        }
+    )
+    widened = df.select((lit(-1) * col("i")).alias("r")).schema().field("r").type
+    assert widened == pa.int64(), ENGINE_CHANGED
+    with pytest.raises(Exception, match=r"Cannot coerce arithmetic expression Int64 \* Duration"):
+        df.select(lit(-1) * col("d"))
+    wrapped = df.select((lit(0).cast(pa.uint8()) - col("u")).alias("r")).to_pydict()
+    assert wrapped == {"r": [255, 254]}, ENGINE_CHANGED
+    lf = nw.from_native(df)
+    result = lf.select(-nw.col("i"), -nw.col("d"))
+    assert result.collect_schema() == {"i": nw.Int8(), "d": nw.Duration("us")}
+    assert collect(result) == {"i": [-1, 2], "d": [-second, -second]}
+    with pytest.raises(InvalidOperationError, match="unsigned"):
+        lf.select(-nw.col("u"))
 
 
 def test_mod_takes_divisor_sign_and_nulls_zero() -> None:
