@@ -103,6 +103,16 @@ def test_top_k_plans_a_top_k_sort() -> None:
     assert sorted(collect(result)["x"]) == [2, 3]
 
 
+def test_unique_on_every_column_is_distinct() -> None:
+    """`unique`: a `row_number` window over every column sorts them; `distinct` hash-aggregates."""
+    df = native({"x": [1, 1, 2], "y": ["a", "a", "b"]})
+    numbered = df.select(F.row_number().over(Window(partition_by=[col("x"), col("y")])).alias("r"))
+    assert "SortExec" in numbered.execution_plan().display_indent(), ENGINE_CHANGED
+    result = nw.from_native(df).unique()
+    assert "SortExec" not in result.to_native().execution_plan().display_indent()
+    assert collect(result.sort("x")) == {"x": [1, 2], "y": ["a", "b"]}
+
+
 def test_sink_parquet_rejects_file_objects(tmp_path, monkeypatch) -> None:
     """`sink_parquet`: `write_parquet` turns a buffer into a filename; the plugin raises."""
     monkeypatch.chdir(tmp_path)

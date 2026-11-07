@@ -287,6 +287,9 @@ class DataFusionLazyFrame(
         subset_ = subset or self.columns
         if error := self._check_columns_exist(subset_):
             raise error
+        # a `row_number` window over every column sorts them all; `distinct` hash-aggregates
+        if keep == "any" and set(subset_) == set(self.columns):
+            return self._with_native(self.native.distinct())
         tmp_name = generate_temporary_column_name(8, self.columns, prefix="row_index_")
         flags = extend_bool(True, len(order_by)) if order_by and keep == "last" else None
         if keep == "none":
