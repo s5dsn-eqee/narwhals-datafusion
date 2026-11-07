@@ -73,6 +73,10 @@ jobs:
         with:
           name: dist
           path: dist
+      # the action's pinned pydantic-core does not build on the runner's Python 3.14
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
       - name: Sign with Sigstore
         uses: sigstore/gh-action-sigstore-python@v3.0.1
         with:
