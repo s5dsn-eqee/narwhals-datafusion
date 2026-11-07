@@ -395,20 +395,28 @@ class DataFusionLazyFrame(
             )
             return self._with_native(empty.limit(0))
 
-        # `union` coerces values but reports the first input's type: cast the
+        # `make_array` casts int and string to int and rejects int and bool: cast the
         # value columns to their polars supertype first
         target = _value_supertype({self._native_schema.field(name).type for name in on_})
 
-        # no native unpivot: one projection per value column, unioned
-        frames = [
-            self.native.select(
-                *index_cols,
-                lit(name).alias(variable_name),
-                (col(name) if target is None else col(name).cast(target)).alias(value_name),
+        # a union of one projection per value column scans the source once per column
+        tmp = generate_temporary_column_name(8, self.columns, prefix="unpivot_")
+        cells = F.make_array(
+            *(
+                F.named_struct(
+                    [
+                        ("variable", lit(name)),
+                        ("value", col(name) if target is None else col(name).cast(target)),
+                    ]
+                )
+                for name in on_
             )
-            for name in on_
-        ]
-        return self._with_native(reduce(lambda left, right: left.union(right), frames))
+        )
+        rows = self.native.select(*index_cols, cells.alias(tmp)).unnest_columns(quote(tmp))
+        # `named_struct` rejects an empty field name, which `variable_name` may be
+        names = {"variable": variable_name, "value": value_name}
+        fields = (F.get_field(col(tmp), field).alias(name) for field, name in names.items())
+        return self._with_native(rows.select(*index_cols, *fields))
 
     def with_row_index(self, name: str, order_by: Sequence[str]) -> Self:
         """Prepend a zero-based row number in ``order_by`` order."""

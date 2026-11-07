@@ -55,14 +55,27 @@ def test_explode_multiple_columns_raises() -> None:
     ],
 )
 def test_unpivot_casts_values_to_supertype(values: list, dtype: type, expected: list) -> None:
-    """`unpivot`: `union` reports the first input's type; values are cast to a supertype."""
-    union = native({"v": [10]}).union(native({"v": ["x"]}))
-    assert union.schema().field("v").type == pa.int64(), ENGINE_CHANGED
-    assert union.to_arrow_table().schema.field("v").type == pa.string(), ENGINE_CHANGED
+    """`unpivot`: `make_array` casts int and string to int; values are cast to a supertype."""
+    with pytest.raises(Exception, match="Cannot cast string 'x' to value of Int64"):
+        native({"a": [10], "b": ["x"]}).select(F.make_array(col("a"), col("b"))).collect()
     result = nw.from_native(native({"a": [10], "b": values})).unpivot(on=["a", "b"])
     result = result.sort("variable")
     assert result.collect_schema()["value"] == dtype
     assert collect(result)["value"] == expected
+
+
+def test_unpivot_scans_the_source_once() -> None:
+    """`unpivot`: a union scans per value column; `named_struct` rejects an empty field name."""
+    df = native({"g": [1, 2], "x": [10, 20], "y": [30, 40]})
+    union = df.select(col("x").alias("v")).union(df.select(col("y").alias("v")))
+    assert union.execution_plan().display_indent().count("DataSourceExec") == 2, ENGINE_CHANGED
+    with pytest.raises(Exception, match="non-empty constant string"):
+        df.select(F.named_struct([("", col("x"))])).collect()
+    result = nw.from_native(df).unpivot(on=["x", "y"], index=["g"])
+    assert result.to_native().execution_plan().display_indent().count("DataSourceExec") == 1
+    expected = {"g": [1, 1, 2, 2], "variable": ["x", "y", "x", "y"], "value": [10, 30, 20, 40]}
+    assert collect(result.sort("g", "variable")) == expected
+    assert list(collect(nw.from_native(df).unpivot(on="x", variable_name=""))) == ["", "value"]
 
 
 def test_concat_diagonal_matches_columns_by_name() -> None:
