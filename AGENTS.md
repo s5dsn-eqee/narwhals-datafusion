@@ -36,7 +36,7 @@ before a commit.
 - **Unsupported operations are declared.** A method DataFusion cannot express
   is `not_implemented()` at class level; one that works for some arguments
   raises `NotImplementedError` naming the backend and the argument. Never
-  return a wrong result silently (`n_unique` over a window is the model).
+  return a wrong result silently (multi-column `explode` is the model).
 - **Every workaround carries a one-line comment** naming the engine behaviour,
   an entry in the `datafusion-workarounds` skill, and a test in
   `tests/workarounds/` that pins the engine behaviour (no test, no workaround).
