@@ -15,7 +15,6 @@ from pathlib import Path
 TESTS_THAT_NEED_FIX: list[str] = [
     "test_cast_datetime_tz_aware",
     "test_cast_datetime_utc",
-    "test_cast_to_enum_v1",
     "test_cast_to_enum_vmain",
     "test_contains_invalid_item_raises",
     "test_contains_invalid_item_raises_without_rows",

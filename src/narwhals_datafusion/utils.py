@@ -18,7 +18,7 @@ from narwhals._arrow.utils import (
     native_to_narwhals_dtype as _arrow_native_to_narwhals_dtype,
 )
 from narwhals._expression_parsing import evaluate_output_names_and_aliases
-from narwhals._utils import extend_bool
+from narwhals._utils import Version, extend_bool, isinstance_or_issubclass
 from narwhals.exceptions import ColumnNotFoundError, DuplicateError, InvalidOperationError
 
 if TYPE_CHECKING:
@@ -27,7 +27,6 @@ if TYPE_CHECKING:
     from datafusion import SessionContext
     from datafusion.expr import SortExpr
     from narwhals._compliant.typing import CompliantLazyFrameAny
-    from narwhals._utils import Version
     from narwhals.dtypes import DType
     from narwhals.typing import IntoDType
 
@@ -102,6 +101,13 @@ def native_to_narwhals_dtype(dtype: pa.DataType, version: Version) -> DType:
 
 def narwhals_to_native_dtype(dtype: IntoDType, version: Version) -> pa.DataType:
     """Map a narwhals dtype to an Arrow type."""
+    # the Arrow mapping's `Enum` error names PyArrow
+    if isinstance_or_issubclass(dtype, version.dtypes.Enum):
+        if version is Version.V1:
+            msg = "Converting to Enum is not supported in narwhals.stable.v1"
+        else:
+            msg = "Converting to Enum is not supported for the DataFusion backend."
+        raise NotImplementedError(msg)
     return _arrow_narwhals_to_native_dtype(dtype, version)
 
 

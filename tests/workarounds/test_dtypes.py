@@ -9,6 +9,8 @@ import pyarrow as pa
 import pytest
 from datafusion import SessionContext, col, lit
 from datafusion import functions as F
+from narwhals._arrow.utils import narwhals_to_native_dtype as arrow_narwhals_to_native_dtype
+from narwhals._utils import Version
 from narwhals.exceptions import InvalidOperationError
 
 import narwhals as nw
@@ -24,6 +26,15 @@ def native(data: dict):
 
 def collect(lf: nw.LazyFrame) -> dict:
     return lf.collect(backend="pyarrow").to_dict(as_series=False)
+
+
+def test_enum_cast_names_the_backend() -> None:
+    """`cast`: narwhals' Arrow mapping names PyArrow for `Enum`; the plugin names DataFusion."""
+    with pytest.raises(NotImplementedError, match="not supported for PyArrow"):
+        arrow_narwhals_to_native_dtype(nw.Enum(["a"]), Version.MAIN)
+    lf = nw.from_native(native({"s": ["a"]}))
+    with pytest.raises(NotImplementedError, match="DataFusion backend"):
+        lf.select(nw.col("s").cast(nw.Enum(["a"])))
 
 
 def test_is_nan_on_strings_raises_invalid_operation() -> None:
