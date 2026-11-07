@@ -28,6 +28,26 @@ def collect(lf: nw.LazyFrame) -> dict:
     return lf.collect(backend="pyarrow").to_dict(as_series=False)
 
 
+def test_datetime_to_string_follows_polars() -> None:
+    """`cast(String)`: the engine writes ISO `T` and `Z`; polars a space, unit digits, `+00:00`."""
+    moment = dt.datetime(2024, 1, 1, 1, 2, 3, 456789)
+    df = native(
+        {
+            "us": pa.array([moment], pa.timestamp("us")),
+            "ms": pa.array([moment], pa.timestamp("ms")),
+            "utc": pa.array([moment], pa.timestamp("us", "UTC")),
+        }
+    )
+    engine = df.select(col("utc").cast(pa.string()).alias("r")).to_pydict()
+    assert engine == {"r": ["2024-01-01T01:02:03.456789Z"]}, ENGINE_CHANGED
+    result = nw.from_native(df).select(nw.all().cast(nw.String()))
+    assert collect(result) == {
+        "us": ["2024-01-01 01:02:03.456789"],
+        "ms": ["2024-01-01 01:02:03.456"],
+        "utc": ["2024-01-01 01:02:03.456789+00:00"],
+    }
+
+
 def test_enum_cast_names_the_backend() -> None:
     """`cast`: narwhals' Arrow mapping names PyArrow for `Enum`; the plugin names DataFusion."""
     with pytest.raises(NotImplementedError, match="not supported for PyArrow"):

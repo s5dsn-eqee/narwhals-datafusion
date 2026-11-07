@@ -12,6 +12,7 @@ from narwhals._utils import (
     Implementation,
     Version,
     extend_bool,
+    isinstance_or_issubclass,
     not_implemented,
 )
 from narwhals.exceptions import InvalidOperationError
@@ -402,6 +403,17 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
         return self._with_elementwise(_fill_constant, expression_args={"value": value})
 
     def cast(self, dtype: IntoDType) -> Self:
+        def to_string(expr: Expr, input_dtype: pa.DataType) -> Expr:
+            if not pa.types.is_timestamp(input_dtype):
+                return expr.cast(pa.string())
+            # the engine writes ISO `T` and `Z`; polars a space, the unit's digits and `+00:00`
+            fraction = {"s": "", "ms": "%.3f", "us": "%.6f", "ns": "%.9f"}[input_dtype.unit]
+            zone = "%:z" if input_dtype.tz else ""
+            return F.to_char(expr, lit(f"%Y-%m-%d %H:%M:%S{fraction}{zone}"))
+
+        if isinstance_or_issubclass(dtype, self._version.dtypes.String):
+            return self._with_native_dtype(to_string, elementwise=True)
+
         def func(df: DataFusionLazyFrame) -> list[Expr]:
             native_dtype = narwhals_to_native_dtype(dtype, self._version)
             return [expr.cast(native_dtype) for expr in self(df)]

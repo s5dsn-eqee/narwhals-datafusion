@@ -42,11 +42,11 @@ for the `constructor` fixture and skips eager-only tests. Reference at narwhals
 
 | Run | Result |
 |---|---|
-| unfiltered | 154 failed, 3,217 passed, 1,128 skipped, 24 xfailed |
-| unique failing names | 58 |
-| `run_tests.py` | 3,144 passed, 1,097 skipped, 22 xfailed |
+| unfiltered | 152 failed, 3,219 passed, 1,128 skipped, 24 xfailed |
+| unique failing names | 56 |
+| `run_tests.py` | 3,146 passed, 1,097 skipped, 22 xfailed |
 
-`TESTS_THAT_NEED_FIX` holds names, so its length tracks the 58.
+`TESTS_THAT_NEED_FIX` holds names, so its length tracks the 56.
 
 ## 3. Regenerate the skip list
 
