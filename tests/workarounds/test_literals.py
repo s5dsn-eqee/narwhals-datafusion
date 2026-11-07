@@ -51,6 +51,21 @@ def test_arithmetic_follows_python(engine, pinned, expr: nw.Expr, expected: list
     assert collect(nw.from_native(df).select(r=expr)) == {"r": expected}
 
 
+def test_float_floordiv_floors_the_quotient() -> None:
+    """`__floordiv__`: float `%` follows Python, so stepping by it gives `1.0 // 0.1` 9.0."""
+    df = native({"g": [1, 1, 2], "a": [1.0, 1.0, -7.0], "b": [0.1, float("inf"), float("inf")]})
+    remainder = df.select((col("a") % col("b")).alias("r")).to_pydict()["r"]
+    assert remainder[0] == 1.0 % 0.1, ENGINE_CHANGED
+    a, b = nw.col("a"), nw.col("b")
+    result = nw.from_native(df).select(r=a // b, s=10 // b, t=a // 2, w=(a.sum() // 2).over("g"))
+    assert collect(result) == {
+        "r": [10.0, 0.0, -0.0],
+        "s": [100.0, 0.0, 0.0],
+        "t": [0.0, 0.0, -4.0],
+        "w": [1.0, 1.0, -4.0],
+    }
+
+
 def test_neg_keeps_the_input_type() -> None:
     """`__neg__`: `-1 * x` widens int8 and rejects durations; a typed `0 - x` wraps unsigned."""
     second = dt.timedelta(seconds=1)

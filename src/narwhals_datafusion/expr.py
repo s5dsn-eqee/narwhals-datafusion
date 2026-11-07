@@ -319,6 +319,40 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
             lambda expr, other: when(expr != lit(0), floor_mod(other, expr)), other
         ).alias("literal")
 
+    # float `%` follows Python (`1.0 // 0.1` is 9.0, `x // inf` NaN); polars floors `/`
+    def __floordiv__(self, other: Self) -> Self:
+        return self._floordiv(other, reflect=False)
+
+    def __rfloordiv__(self, other: Self) -> Self:
+        return self._floordiv(other, reflect=True).alias("literal")
+
+    def _floordiv(self, other: Self, *, reflect: bool) -> Self:
+        """Floor-divide by ``other``, reversed if ``reflect``; a zero divisor gives null."""
+
+        def floordiv(df: DataFusionLazyFrame, expr: Expr, other_expr: Expr) -> Expr:
+            left, right = (other_expr, expr) if reflect else (expr, other_expr)
+            if pa.types.is_floating(df._native_dtype(left / right)):
+                result = F.floor(left / right)
+            else:
+                result = self._function("floordiv", left, right)
+            return when(right != lit(0), result)
+
+        def func(df: DataFusionLazyFrame) -> list[Expr]:
+            other_expr = df._evaluate_single_output_expr(other)
+            return [floordiv(df, expr, other_expr) for expr in self(df)]
+
+        def window_f(df: DataFusionLazyFrame, inputs: DataFusionWindowInputs) -> list[Expr]:
+            other_expr = df._evaluate_window_expr(other, inputs)
+            return [floordiv(df, expr, other_expr) for expr in self.window_function(df, inputs)]
+
+        return self.__class__(
+            func,
+            window_f,
+            evaluate_output_names=self._evaluate_output_names,
+            alias_output_names=self._alias_output_names,
+            version=self._version,
+        )
+
     def n_unique(self) -> Self:
         F_ = self._function
         one, zero = self._lit(1), self._lit(0)

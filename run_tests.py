@@ -22,7 +22,6 @@ TESTS_THAT_NEED_FIX: list[str] = [
     "test_explode_multiple_cols",
     "test_fill_null_limits",
     "test_fill_null_strategies_with_limit_as_none",
-    "test_floordiv_floats",
     "test_is_finite_expr",
     "test_joinasof_by",
     "test_joinasof_numeric",
