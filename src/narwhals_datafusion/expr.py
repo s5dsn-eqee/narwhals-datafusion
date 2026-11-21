@@ -19,6 +19,7 @@ from narwhals.exceptions import InvalidOperationError
 
 from narwhals_datafusion.expr_dt import DataFusionExprDateTimeNamespace
 from narwhals_datafusion.expr_list import DataFusionExprListNamespace
+from narwhals_datafusion.expr_map import DataFusionExprMapNamespace
 from narwhals_datafusion.expr_str import DataFusionExprStringNamespace
 from narwhals_datafusion.expr_struct import DataFusionExprStructNamespace
 from narwhals_datafusion.utils import (
@@ -516,6 +517,10 @@ class DataFusionExpr(SQLExpr["DataFusionLazyFrame", "Expr"]):
     @property
     def list(self) -> DataFusionExprListNamespace:
         return DataFusionExprListNamespace(self)
+
+    @property
+    def map(self) -> DataFusionExprMapNamespace:
+        return DataFusionExprMapNamespace(self)
 
     @property
     def struct(self) -> DataFusionExprStructNamespace:

@@ -1,6 +1,6 @@
 # API coverage
 
-narwhals 2.28 on datafusion 55. ⚠️ entries work with the caveat in parentheses.
+narwhals 2.29 on datafusion 55. ⚠️ entries work with the caveat in parentheses.
 
 | Namespace | ✅ Supported | ⚠️ Partial | ❌ Not supported |
 |---|---|---|---|
@@ -8,6 +8,7 @@ narwhals 2.28 on datafusion 55. ⚠️ entries work with the caveat in parenthes
 | `Expr.str` | `contains` `ends_with` `head` `len_chars` `pad_end` `pad_start` `replace_all` `slice` `split` `starts_with` `strip_chars` `strip_chars_end` `strip_chars_start` `tail` `to_date` `to_lowercase` `to_time` `to_uppercase` `zfill` | `to_datetime` (explicit `format` required) · `to_titlecase` (no word breaks on digits) | `replace` (use `replace_all`) |
 | `Expr.dt` | `convert_time_zone` `date` `day` `hour` `microsecond` `millisecond` `minute` `month` `nanosecond` `ordinal_day` `replace_time_zone` `second` `to_string` `weekday` `year` | `truncate` (a multiple raises where an aware bin starts in a DST gap or overlap, and past 2262) | `offset_by` `timestamp` `total_microseconds` `total_milliseconds` `total_minutes` `total_nanoseconds` `total_seconds` |
 | `Expr.list` | `contains` `get` `len` `max` `mean` `min` `sort` | `sum` (float elements only) · `unique` (`maintain_order=False` only) | `median` |
+| `Expr.map` | `get` | | |
 | `Expr.struct` | `field` | | |
 | `LazyFrame` | `collect` `collect_schema` `drop` `drop_nulls` `filter` `group_by` `head` `join` `rename` `select` `sort` `top_k` `unique` `unpivot` `with_columns` `with_row_index` | `explode` (single column) · `sink_parquet` (file path only) | `join_asof` |
 

@@ -87,7 +87,7 @@ grep -rn "^\s*# " src/narwhals_datafusion/*.py
 
 | Name | Description | Test | Link |
 |---|---|---|---|
-| `explode` empty lists | `unnest_columns` drops empty lists. `explode` turns them into nulls first (`nullif`) and keeps null lists (`preserve_nulls`). | [`test_explode_keeps_empty_and_null_lists`][t-frames] | [`dataframe.explode`][dataframe] |
+| `explode` empty lists | `unnest_columns` drops empty lists. With `empty_as_null`, `explode` turns them into nulls first (`nullif`); it keeps null lists (`preserve_nulls`), filtered out first without `keep_nulls`. | [`test_explode_keeps_empty_and_null_lists`][t-frames] | [`dataframe.explode`][dataframe] |
 | Multi-column `explode` | Unnesting several lists pads the shorter ones with null, where polars raises. `explode` on several columns raises `NotImplementedError`. | [`test_explode_multiple_columns_raises`][t-frames] | [`dataframe.explode`][dataframe] |
 | `unpivot` | No native unpivot, and a union of one projection per value column scans the source once per column. `unpivot` unnests one `make_array` of `named_struct(variable, value)`; the field names are fixed, since `named_struct` rejects an empty one, and the output names are aliases. | [`test_unpivot_scans_the_source_once`][t-frames] | [`dataframe.unpivot`][dataframe] |
 | `unpivot` types | `make_array` casts int and string to int (`'x'` fails) and rejects int with bool, so value columns are cast to polars' supertype first. `_value_supertype` uses pyarrow's permissive promotion, folds bool in, maps signed + uint64 to Float64, else String. | [`test_unpivot_casts_values_to_supertype`][t-frames] | [`dataframe.unpivot`][dataframe] |

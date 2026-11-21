@@ -22,6 +22,6 @@ a row goes in the same commit as the change that lifts it.
 [dataframe]: ../src/narwhals_datafusion/dataframe.py
 [namespace]: ../src/narwhals_datafusion/namespace.py
 [crate]: https://github.com/datafusion-contrib/datafusion-extra-functions
-[nw-lazyexpr]: https://github.com/narwhals-dev/narwhals/blob/v2.28.0/src/narwhals/_compliant/expr.py#L941-L942
-[nw-sqlexpr]: https://github.com/narwhals-dev/narwhals/blob/v2.28.0/src/narwhals/_sql/expr.py#L984-L1001
-[nw-v1]: https://github.com/narwhals-dev/narwhals/blob/v2.28.0/src/narwhals/stable/v1/__init__.py#L292-L296
+[nw-lazyexpr]: https://github.com/narwhals-dev/narwhals/blob/v2.29.0/src/narwhals/_compliant/expr.py#L949-L950
+[nw-sqlexpr]: https://github.com/narwhals-dev/narwhals/blob/v2.29.0/src/narwhals/_sql/expr.py#L993-L1010
+[nw-v1]: https://github.com/narwhals-dev/narwhals/blob/v2.29.0/src/narwhals/stable/v1/__init__.py#L294-L298

@@ -351,8 +351,10 @@ class DataFusionLazyFrame(
         with translate_errors(self):
             return self._with_native(joined.select(*selection))
 
-    def explode(self, columns: Sequence[str]) -> Self:
-        """One row per list element; an empty or null list gives one row with null."""
+    def explode(
+        self, columns: Sequence[str], *, empty_as_null: bool = True, keep_nulls: bool = True
+    ) -> Self:
+        """One row per list element; a flag keeps an empty or null list as a null row."""
         if error := self._check_columns_exist(columns):
             raise error
         dtypes = self._version.dtypes
@@ -371,9 +373,11 @@ class DataFusionLazyFrame(
             raise NotImplementedError(msg)
 
         name = columns[0]
-        # `unnest_columns` drops empty lists; as nulls, `preserve_nulls` keeps them
-        emptied = self.native.with_column(name, F.nullif(col(name), F.make_array()))
-        return self._with_native(emptied.unnest_columns(quote(name), preserve_nulls=True))
+        native = self.native if keep_nulls else self.native.filter(col(name).is_not_null())
+        if empty_as_null:
+            # `unnest_columns` drops empty lists; as nulls, `preserve_nulls` keeps them
+            native = native.with_column(name, F.nullif(col(name), F.make_array()))
+        return self._with_native(native.unnest_columns(quote(name), preserve_nulls=True))
 
     def unpivot(
         self,

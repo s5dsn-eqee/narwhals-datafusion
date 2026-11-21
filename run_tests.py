@@ -19,7 +19,10 @@ TESTS_THAT_NEED_FIX: list[str] = [
     "test_duration_attributes_nano",
     "test_enum",
     "test_enum_distinct_from_categorical",
+    "test_explode_frame_options",
+    "test_explode_frame_single_elements",
     "test_explode_multiple_cols",
+    "test_explode_multiple_cols_null_and_empty_same_index",
     "test_fill_null_limits",
     "test_fill_null_strategies_with_limit_as_none",
     "test_is_finite_expr",
@@ -66,6 +69,7 @@ TESTS_THAT_NEED_FIX: list[str] = [
     "test_unique_maintain_order_expr",
     "test_with_columns_numpy_array",
     "test_with_row_index",
+    "test_xor_operator_integers",
 ]
 
 # pass locally, fail only in CI; `update_run_tests.py` leaves this list alone
