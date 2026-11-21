@@ -13,7 +13,9 @@ if TYPE_CHECKING:
     from narwhals_datafusion.expr import DataFusionExpr
 
 
-class DataFusionExprMapNamespace(LazyExprNamespace["DataFusionExpr"], MapNamespace["DataFusionExpr"]):
+class DataFusionExprMapNamespace(
+    LazyExprNamespace["DataFusionExpr"], MapNamespace["DataFusionExpr"]
+):
     """``Expr.map``."""
 
     def get(self, key: NonNestedLiteral) -> DataFusionExpr:
